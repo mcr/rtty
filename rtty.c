@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.8 1993-12-28 01:15:10 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.9 1994-04-11 18:18:57 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -259,7 +259,8 @@ tty_input(fd) {
 			}
 			break;
 		case need_cr:
-			if (ch == '\r') {
+			/* \04 (^D) is a line terminator on some systems */
+			if (ch == '\r' || ch == '\04') {
 				state = base;
 			}
 			break;
