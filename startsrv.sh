@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: startsrv.sh,v 1.8 1997-08-22 20:11:54 vixie Exp $
+# $Id: startsrv.sh,v 1.9 2000-12-29 09:10:29 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -78,12 +78,12 @@ do
 	fi
 
 	rm -f DESTPATH/sock/$host DESTPATH/pid/$host
-	daemon DESTPATH/bin/ttysrv $options \
+	DESTPATH/bin/ttysrv $options \
 		-t DESTPATH/dev/$host \
 		-s DESTPATH/sock/$host \
 		-l DESTPATH/log/$host \
 		-i DESTPATH/pid/$host \
-		> DESTPATH/out/$host 2>&1
+		> DESTPATH/out/$host 2>&1 &
 	echo -n " "
 	tries=5
 	while [ $tries -gt 0 -a ! -f DESTPATH/pid/$host ]; do
