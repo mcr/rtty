@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# $Id: agelogs.sh,v 1.3 1996-08-23 22:25:25 vixie Exp $
+# $Id: agelogs.sh,v 1.4 2001-03-24 21:17:39 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -17,7 +17,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-agelog=/usr/etc/agelog
+agelog=DESTPATH/bin/agelog
 
 cd DESTPATH/dev
 for tty in *
