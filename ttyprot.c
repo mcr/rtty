@@ -1,8 +1,10 @@
 /* ttyprot.c - utility routines to deal with the rtty protocol
  * vixie 12Sep91 [new]
- *
- * $Id: ttyprot.c,v 1.2 1992-09-10 23:24:39 vixie Exp $
  */
+
+#ifndef LINT
+static char RCSid[] = "$Id: ttyprot.c,v 1.3 1992-09-10 23:30:52 vixie Exp $";
+#endif
 
 #include <sys/types.h>
 #include <sys/uio.h>

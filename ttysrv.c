@@ -1,8 +1,10 @@
 /* ttysrv - serve a tty to stdin/stdout, a named pipe, or a network socket
  * vix 28may91 [written]
- *
- * $Id: ttysrv.c,v 1.5 1992-09-10 23:24:13 vixie Exp $
  */
+
+#ifndef LINT
+static char RCSid[] = "$Id: ttysrv.c,v 1.6 1992-09-10 23:30:52 vixie Exp $";
+#endif
 
 #include <stdio.h>
 #include <termio.h>

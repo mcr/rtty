@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1992-06-23 16:27:18 vixie Exp $
+# $Id: Makefile,v 1.4 1992-09-10 23:32:43 vixie Exp $
 
 DESTROOT =
 DESTPATH = $(DESTROOT)/rtty
@@ -15,6 +15,8 @@ ALL = $(BINARY) $(SCRIPT)
 all: $(ALL)
 
 clean:; rm -rf $(ALL) *.o *.BAK *.CKP *~
+
+kit:; shar -o ../kit README Makefile *.c *.h *.sh
 
 install: $(ALL) Makefile
 	set -x; for x in $(BINARY); do \

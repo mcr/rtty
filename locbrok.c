@@ -1,8 +1,10 @@
 /* locbrok - location broker
  * vix 13sep91 [written]
- *
- * $Id: locbrok.c,v 1.1 1992-01-02 02:04:18 vixie Exp $
  */
+
+#ifndef LINT
+static char RCSid[] = "$Id: locbrok.c,v 1.2 1992-09-10 23:30:52 vixie Exp $";
+#endif
 
 #include <stdio.h>
 #include <errno.h>

@@ -1,8 +1,10 @@
 /* rconnect - connect to a service on a remote host
  * vix 13sep91 [written - again, dammit]
- *
- * $Id: connutil.c,v 1.1 1992-01-02 02:04:18 vixie Exp $
  */
+
+#ifndef LINT
+static char RCSid[] = "$Id: connutil.c,v 1.2 1992-09-10 23:30:52 vixie Exp $";
+#endif
 
 #include <stdio.h>
 #include <errno.h>

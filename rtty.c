@@ -1,8 +1,10 @@
 /* rtty - client of ttysrv
  * vix 28may91 [written]
- *
- * $Id: rtty.c,v 1.4 1992-09-10 23:23:52 vixie Exp $
  */
+
+#ifndef LINT
+static char RCSid[] = "$Id: rtty.c,v 1.5 1992-09-10 23:30:52 vixie Exp $";
+#endif
 
 #include <stdio.h>
 #include <termio.h>
