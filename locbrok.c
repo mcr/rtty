@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.12 2003-02-14 19:29:21 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.13 2003-02-14 19:30:02 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -84,9 +84,11 @@ main(int argc, char *argv[]) {
 		case 's':
 			Service = optarg;
 			break;
+#ifdef DEBUG
 		case 'x':
 			Debug = atoi(optarg);
 			break;
+#endif
 		default:
 			USAGE((stderr, "%s: getopt=%c ?\n", ProgName, ch));
 		}
