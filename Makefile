@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.15 1997-08-22 20:11:54 vixie Exp $
+# $Id: Makefile,v 1.16 1997-08-22 20:14:14 vixie Exp $
 
-# Copyright (c) 1996 by Internet Software Consortium.
+# Copyright (c) 1996,1997 by Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-VERSION = 3.2
+VERSION = 3.3
 
 VPATH = ../src
 
@@ -51,7 +51,9 @@ ALL = $(BINARY) $(SCRIPT)
 
 all: $(ALL)
 
-clean:; rm -rf $(ALL) *.o *.BAK *.CKP *~
+clean:
+	rm -f $(ALL) version.c
+	rm -f *.o *.BAK *.CKP *~
 
 kit:; shar README Makefile *.c *.h *.sh > kit
 
