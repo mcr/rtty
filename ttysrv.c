@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.20 2002-06-28 18:37:02 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.21 2002-06-30 20:09:52 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -42,6 +42,7 @@ static char RCSid[] = "$Id: ttysrv.c,v 1.20 2002-06-28 18:37:02 vixie Exp $";
 #include <stdlib.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <time.h>
 #include <unistd.h>
 
 #if defined(DEBUG) && !defined(dprintf)
@@ -326,7 +327,7 @@ main_loop(void) {
 		if (RServ != -1)
 			FD_SET(RServ, &readfds);
 		FD_SET(Tty, &readfds);
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(__linux__)
 		if (Debug > 2)
 			lprintf(stderr,
 				"main_loop: select(%d,%08x) LD=%d\n",
@@ -795,13 +796,67 @@ struct cstab { int wordsize, syswordsize; } cstab[] = {
 	{ 0, -1 }
 };
 
+
+#define baud(b) {(b), (B ## b)}
+
+static struct baud_map {
+    int         bps;            /* bits per second */
+    speed_t     code;           /* code to select speed */
+} baud_map[] = {
+        baud(0),
+        baud(50),
+        baud(75),
+        baud(110),
+        baud(134),
+        baud(150),
+        baud(200),
+        baud(300),
+        baud(600),
+        baud(1200),
+        baud(1800),
+        baud(2400),
+        baud(4800),
+        baud(9600),
+        baud(19200),
+        baud(38400),
+        baud(57600),
+        baud(115200),
+        baud(230400),
+
+#if defined(B460800)		/* higher speeds are not always defined */
+        baud(460800),
+        baud(500000),
+        baud(576000),
+        baud(921600),
+        baud(1000000),
+        baud(1152000),
+        baud(1500000),
+        baud(2000000),
+        baud(2500000),
+        baud(3000000),
+        baud(3500000),
+        baud(4000000),
+#endif
+
+        {-1, -1}
+};
+
+#undef baud
+
 static int
 set_baud(int baud) {
-	if (cfsetispeed(&Ttyios, baud) < 0)
-		return -1;
-	if (cfsetospeed(&Ttyios, baud) < 0)
-		return -1;
-	return (0);
+	struct baud_map *bp;
+
+	for (bp = baud_map; bp->bps != -1; bp++) {
+		if (baud == bp->bps) {
+			if (cfsetispeed(&Ttyios, bp->code) < 0)
+				return (-1);
+			if (cfsetospeed(&Ttyios, bp->code) < 0)
+				return (-1);
+			return (0);
+		}
+	}
+	return (-1);
 }
 
 static int
