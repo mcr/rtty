@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# $Id: console.sh,v 1.4 1996-08-23 22:25:25 vixie Exp $
+# $Id: console.sh,v 1.5 2000-07-29 01:33:20 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -19,6 +19,15 @@
 
 default_options=''
 
+cmdopts=''
+while [ $# -gt 0 ]; do
+	case $1 in
+	-r) cmdopts="$opts -r"; shift ;;
+	-*) shift ;;
+	*) break 2 ;;
+	esac
+done
+
 host=$1
 
 [ -z "$host" ] && {
@@ -34,4 +43,4 @@ else
 	options="$default_options"
 fi
 
-exec DESTPATH/bin/rtty $options DESTPATH/sock/$host
+exec DESTPATH/bin/rtty $options $cmdopts DESTPATH/sock/$host

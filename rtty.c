@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.14 1996-08-23 22:25:25 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.15 2000-07-29 01:33:20 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -45,7 +45,7 @@ static char RCSid[] = "$Id: rtty.c,v 1.14 1996-08-23 22:25:25 vixie Exp $";
 #endif
 
 #define USAGE_STR \
-	"[-7] [-x DebugLevel] Serv"
+	"[-s ServSpec] [-l LoginName] [-7] [-r] [-x DebugLevel] Serv"
 
 #ifdef USE_UNISTD
 #include <unistd.h>
@@ -79,6 +79,7 @@ static	int		Serv = -1,
 			Log = -1,
 			Ttyios_set = 0,
 			SevenBit = 0,
+			Restricted = 0,
 			highest_fd = -1;
 
 static	struct termios	Ttyios, Ttyios_orig;
@@ -118,7 +119,7 @@ main(argc, argv)
 		TtyName = "/dev/null";
 	}
 
-	while ((ch = getopt(argc, argv, "s:x:l:7")) != EOF) {
+	while ((ch = getopt(argc, argv, "s:x:l:7r")) != EOF) {
 		switch (ch) {
 		case 's':
 			ServSpec = optarg;
@@ -130,6 +131,9 @@ main(argc, argv)
 #endif
 		case 'l':
 			Login = optarg;
+			break;
+		case 'r':
+			Restricted++;
 			break;
 		case '7':
 			SevenBit++;
@@ -168,7 +172,7 @@ main(argc, argv)
 		if (cp)
 			*cp++ = '\0';
 		else
-			cp = "127.1";
+			cp = "127.0.0.1";
 
 		if ((loc = rconnect(cp, "locbrok", NULL,stderr,30)) == -1) {
 			fprintf(stderr, "can't contact location broker\n");
@@ -291,13 +295,15 @@ tty_input(fd) {
 			}
 			break;
 		case tilde:
-#define HELP_STR "\r\n\
-~~  - send one tilde (~)\r\n\
-~.  - exit program\r\n\
-~^Z - suspent program\r\n\
+#define RESTRICTED_HELP_STR "\r\n\
+~^Z - suspend program\r\n\
 ~^L - set logging\r\n\
 ~q  - query server\r\n\
 ~s  - set option\r\n\
+"
+#define UNRESTRICTED_HELP_STR "\r\n\
+~~  - send one tilde (~)\r\n\
+~.  - exit program\r\n\
 ~#  - send BREAK\r\n\
 ~?  - this message\r\n\
 "
@@ -309,11 +315,15 @@ tty_input(fd) {
 				quit(0);
 				/* FALLTHROUGH */
 			case 'L'-'@': /* ~^L - start logging */
+				if (Restricted)
+					goto passthrough;
 				install_ttyios(Tty, &Ttyios_orig);
 				logging();
 				install_ttyios(Tty, &Ttyios);
 				continue;
 			case 'Z'-'@': /* ~^Z - suspend yourself */
+				if (Restricted)
+					goto passthrough;
 				install_ttyios(Tty, &Ttyios_orig);
 				kill(getpid(), SIGTSTP);
 				install_ttyios(Tty, &Ttyios);
@@ -321,14 +331,19 @@ tty_input(fd) {
 			case 'q': /* ~q - query server */
 				/*FALLTHROUGH*/
 			case 's': /* ~s - set option */
+				if (Restricted)
+					goto passthrough;
 				query_or_set(ch);
 				continue;
 			case '#': /* ~# - send break */
 				tp_sendctl(Serv, TP_BREAK, 0, NULL);
 				continue;
 			case '?': /* ~? - help */
-				fprintf(stderr, HELP_STR);
+				if (!Restricted)
+					fprintf(stderr, RESTRICTED_HELP_STR);
+				fprintf(stderr, UNRESTRICTED_HELP_STR);
 				continue;
+ passthrough:
 			default: /* ~mumble - write; `mumble' is in buf[] */
 				tp_senddata(Serv, (u_char *)"~", 1,
 					    TP_DATA);
