@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.19 2002-02-27 22:00:24 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.20 2002-04-24 17:02:41 vixie Exp $";
 #endif
 
 /*
@@ -105,7 +105,7 @@ main(int argc, char *argv[]) {
 	if ((TtyName = ttyname(STDIN_FILENO)) == NULL)
 		TtyName = "/dev/null";
 
-	while ((ch = getopt(argc, argv, "s:x:l:7r")) != EOF) {
+	while ((ch = getopt(argc, argv, "s:x:l:7r")) != -1) {
 		switch (ch) {
 		case 's':
 			ServSpec = optarg;

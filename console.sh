@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# $Id: console.sh,v 1.5 2000-07-29 01:33:20 vixie Exp $
+# $Id: console.sh,v 1.6 2002-04-24 17:02:40 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -24,7 +24,7 @@ while [ $# -gt 0 ]; do
 	case $1 in
 	-r) cmdopts="$opts -r"; shift ;;
 	-*) shift ;;
-	*) break 2 ;;
+	*) break ;;
 	esac
 done
 

@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.9 2001-03-24 21:14:26 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.10 2002-04-24 17:02:41 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -76,10 +76,10 @@ static	reg_db		*RegDB = NULL;
 
 main(int argc, char *argv[]) {
 	struct servent *serv;
-	char ch;
+	int ch;
 
 	ProgName = argv[0];
-	while ((ch = getopt(argc, argv, "s:x:")) != EOF) {
+	while ((ch = getopt(argc, argv, "s:x:")) != -1) {
 		switch (ch) {
 		case 's':
 			Service = optarg;
