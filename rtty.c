@@ -1,7 +1,7 @@
 /* rtty - client of ttysrv
  * vix 28may91 [written]
  *
- * $Id: rtty.c,v 1.3 1992-07-06 18:42:55 vixie Exp $
+ * $Id: rtty.c,v 1.4 1992-09-10 23:23:52 vixie Exp $
  */
 
 #include <stdio.h>
@@ -62,7 +62,6 @@ main(argc, argv)
 	if (0 > gethostname(Hostname, MAXHOSTNAMELEN)) {
 		strcpy(Hostname, "amnesia");
 	}
-
 	if (!(tmpU = getlogin())) {
 		struct passwd *pw = getpwuid(getuid());
 
@@ -72,11 +71,9 @@ main(argc, argv)
 			tmpU = "nobody";
 		}
 	}
-
 	if (!(tmpT = ttyname(STDIN))) {
 		tmpT = "/dev/null";
 	}
-
 	sprintf(WhoAmI, "%s%%%s@%s", tmpU, tmpT, Hostname);
 
 	while ((ch = getopt(argc, argv, "s:x:7")) != EOF) {
@@ -146,8 +143,6 @@ main(argc, argv)
 		ASSERT(Serv >= 0, "rconnect rtty");
 	}
 
-	fprintf(stderr, "[%s connected]\n", WhoAmI);
-
 	{
 		tcgetattr(Tty, &Ttyios);
 		Ttyios_orig = Ttyios;
@@ -163,8 +158,9 @@ main(argc, argv)
 		tcsetattr(Tty, TCSANOW, &Ttyios);
 	}
 
-	fprintf(stderr, "[use ~qT to see the recent tty activity;\r\n");
-	fprintf(stderr, " use ~qW to see who else is on.]\r\n");
+	fprintf(stderr,
+		"(use (CR)~? for minimal help; also (CR)~q? and (CR)~s?)\r\n"
+		);
 	tp_sendctl(Serv, TP_WHOSON, strlen(WhoAmI), WhoAmI);
 	main_loop();
 }
@@ -269,7 +265,8 @@ tty_input(fd) {
 				fprintf(stderr, HELP_STR);
 				continue;
 			default: /* ~mumble - write; `mumble' is in buf[] */
-				tp_senddata(Serv, (unsigned char *)"~", 1);
+				tp_senddata(Serv, (unsigned char *)"~", 1,
+					    TP_DATA);
 				if (Log != -1) {
 					write(Log, "~", 1);
 				}
@@ -277,7 +274,7 @@ tty_input(fd) {
 			}
 			break;
 		}
-		if (0 > tp_senddata(Serv, buf, 1)) {
+		if (0 > tp_senddata(Serv, buf, 1, TP_DATA)) {
 			server_died();
 		}
 		if (Log != -1) {
@@ -361,6 +358,7 @@ query_or_set(ch)
 			if (set) {
 				fputs("\07\r\n", stderr);
 			} else {
+			       	fputs("Tail\r\n", stderr);
 				tp_sendctl(Serv, TP_TAIL|TP_QUERY, 0, NULL);
 			}
 			break;
@@ -368,12 +366,14 @@ query_or_set(ch)
 			if (set) {
 				fputs("\07\r\n", stderr);
 			} else {
+			       	fputs("Whoson\r\n", stderr);
 				tp_sendctl(Serv, TP_WHOSON|TP_QUERY, 0, NULL);
 			}
 			break;
 		default:
 			if (set)
-				fputs("[all baud parity wordsize]\r\n", stderr);
+				fputs("[all baud parity wordsize]\r\n",
+				      stderr);
 			else
 				fputs("[Whoson Tail]\r\n", stderr);
 			break;
@@ -409,7 +409,7 @@ logging() {
 serv_input(fd) {
 	register int nchars;
 	register int i;
-	register unsigned int o;
+	register unsigned int f, o, t;
 
 	if (0 >= (nchars = read(fd, &T, TP_FIXED))) {
 		fprintf(stderr, "serv_input: read(%d) returns %d\n",
@@ -418,9 +418,12 @@ serv_input(fd) {
 	}
 
 	i = ntohs(T.i);
-	o = ntohs(T.f) & TP_OPTIONMASK;
-	switch (ntohs(T.f) & TP_TYPEMASK) {
-	case TP_DATA:
+	f = ntohs(T.f);
+	o = f & TP_OPTIONMASK;
+	t = f & TP_TYPEMASK;
+	switch (t) {
+	case TP_DATA:	/* FALLTHROUGH */
+	case TP_NOTICE:
 		if (i != (nchars = read(fd, T.c, i))) {
 			fprintf(stderr, "serv_input: read@%d need %d got %d\n",
 				fd, i, nchars);
@@ -433,9 +436,25 @@ serv_input(fd) {
 				T.c[i] &= 0x7f;
 			}
 		}
-		write(STDOUT, T.c, nchars);
-		if (Log != -1) {
-			write(Log, T.c, nchars);
+		switch (t) {
+		case TP_DATA:
+			write(STDOUT, T.c, nchars);
+			if (Log != -1) {
+				write(Log, T.c, nchars);
+			}
+			break;
+		case TP_NOTICE:
+			write(STDOUT, "[", 1);
+			write(STDOUT, T.c, nchars);
+			write(STDOUT, "]\r\n", 3);
+			if (Log != -1) {
+				write(Log, "[", 1);
+				write(Log, T.c, nchars);
+				write(Log, "]\r\n", 3);
+			}
+			break;
+		default:
+			break;
 		}
 		break;
 	case TP_BAUD:
