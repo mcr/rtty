@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: startsrv.sh,v 1.10 2001-03-24 21:17:40 vixie Exp $
+# $Id: startsrv.sh,v 1.11 2003-02-19 18:28:21 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -19,7 +19,7 @@
 
 default_options='-b 9600 -w 8 -p none'
 default_sock_prot='ug=rw,o='
-default_sock_owner='root.wheel'
+default_sock_owner='root:wheel'
 default_log_prot='u=rw,g=r,o='
 
 for host
