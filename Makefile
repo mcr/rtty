@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1992-01-02 02:04:18 vixie Exp $
+# $Id: Makefile,v 1.2 1992-04-18 04:16:37 vixie Exp $
 
 DESTROOT =
 DESTPATH = $(DESTROOT)/rtty
@@ -24,13 +24,13 @@ install: $(ALL)
 	done
 
 ttysrv: ttysrv.o ttyprot.o connutil.o
-	cc -o ttysrv ttysrv.o ttyprot.o connutil.o
+	$(CC) -o ttysrv ttysrv.o ttyprot.o connutil.o
 
 rtty: rtty.o ttyprot.o connutil.o
-	cc -o rtty rtty.o ttyprot.o connutil.o
+	$(CC) -o rtty rtty.o ttyprot.o connutil.o
 
 locbrok: locbrok.o
-	cc -o locbrok locbrok.o
+	$(CC) -o locbrok locbrok.o
 
 console: console.sh
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
@@ -39,6 +39,9 @@ startsrv: startsrv.sh
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
 
 agelogs: agelogs.sh
+	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
+
+Startup: Startup.sh
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
 
 agelog: agelog.sh
