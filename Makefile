@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.13 1996-08-23 22:25:25 vixie Exp $
+# $Id: Makefile,v 1.14 1996-08-23 22:26:53 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -114,7 +114,7 @@ version.c: Makefile
 	( \
 	  echo "#ifndef LINT"; \
 	  echo "char Copyright[] ="; \
-	  echo '  "Copyright 1996 by Internet Software Consortium";' \
+	  echo '  "Copyright 1996 by Internet Software Consortium";'; \
 	  echo "char Version[] ="; \
 	  echo '  "Version $(VERSION) ('`whoami`'@'`hostname`' '`date`')";'; \
 	  echo "#endif"; \
