@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.18 2001-05-18 17:27:22 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.19 2002-02-27 22:00:24 vixie Exp $";
 #endif
 
 /*
@@ -377,6 +377,7 @@ query_or_set(int fd, int ch) {
 			fputs("baud ", stderr);
 			install_ttyios(fd, &Ttyios_orig);
 			fgets(buf, sizeof buf, stdin);
+			install_ttyios(fd, &Ttyios);
 			if (buf[strlen(buf)-1] == '\n') {
 				buf[strlen(buf)-1] = '\0';
 			}
@@ -393,6 +394,7 @@ query_or_set(int fd, int ch) {
 			fputs("parity ", stderr);
 			install_ttyios(fd, &Ttyios_orig);
 			fgets(buf, sizeof buf, stdin);
+			install_ttyios(fd, &Ttyios);
 			if (buf[strlen(buf)-1] == '\n') {
 				buf[strlen(buf)-1] = '\0';
 			}
@@ -407,6 +409,7 @@ query_or_set(int fd, int ch) {
 			fputs("wordsize ", stderr);
 			install_ttyios(fd, &Ttyios_orig);
 			fgets(buf, sizeof buf, stdin);
+			install_ttyios(fd, &Ttyios);
 			if (!(new = atoi(buf))) {
 				break;
 			}
