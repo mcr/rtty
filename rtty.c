@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.20 2002-04-24 17:02:41 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.21 2002-06-28 18:45:03 vixie Exp $";
 #endif
 
 /*
@@ -48,7 +48,7 @@ static char RCSid[] = "$Id: rtty.c,v 1.20 2002-04-24 17:02:41 vixie Exp $";
 #define LOCAL_DEBUG 0
 
 #define USAGE_STR \
-	"[-s ServSpec] [-l LoginName] [-7] [-r] [-x DebugLevel] Serv"
+ 	"[-e c] [-s ServSpec] [-l LoginName] [-7] [-r] [-x DebugLevel] Serv"
 
 #define Tty STDIN_FILENO
 
@@ -70,7 +70,8 @@ static	int		Serv = -1,
 			Ttyios_set = 0,
 			SevenBit = 0,
 			Restricted = 0,
-			highest_fd = -1;
+ 			highest_fd = -1,
+ 			 EscChar = '~';
 
 static	struct termios	Ttyios, Ttyios_orig;
 static	fd_set		fds;
@@ -82,7 +83,9 @@ static	void		main_loop(void),
 			serv_input(int),
 			server_replied(char *, int),
 			server_died(void),
-			quit(int);
+ 			quit(int),
+ 			restricted_help(void),
+ 			unrestricted_help(void);
 
 #ifdef DEBUG
 int Debug = 0;
@@ -105,8 +108,20 @@ main(int argc, char *argv[]) {
 	if ((TtyName = ttyname(STDIN_FILENO)) == NULL)
 		TtyName = "/dev/null";
 
-	while ((ch = getopt(argc, argv, "s:x:l:7r")) != -1) {
+ 	while ((ch = getopt(argc, argv, "e:s:x:l:7r")) != -1) {
 		switch (ch) {
+ 		 case 'e':
+ 			 EscChar = optarg[0];
+ 			 fprintf(stderr, "escape character set to ");
+ 			 if(isprint(EscChar))
+ 			     fprintf(stderr, "%c\n", EscChar);
+ 			 else {
+ 			     fprintf(stderr, "0x%02x\n", EscChar);
+ 			     USAGE((stderr,
+ 				     "must specify a printable character\n"));
+ 			 }
+ 			 break;
+
 		case 's':
 			ServSpec = optarg;
 			break;
@@ -195,7 +210,9 @@ main(int argc, char *argv[]) {
 	Ttyios_set++;
 
 	fprintf(stderr,
-		"(use (CR)~? for minimal help; also (CR)~q? and (CR)~s?)\r\n");
+ 		"(use (CR)%c? for minimal help; "
+ 		 "also (CR)%cq? and (CR)%cs?)\r\n",
+ 		 EscChar, EscChar, EscChar);
 	tp_sendctl(Serv, TP_WHOSON, strlen(WhoAmI), (u_char*)WhoAmI);
 	main_loop();
 	exit(0);
@@ -247,7 +264,7 @@ tty_input(int fd) {
 
 		switch (state) {
 		case base:
-			if (ch == '~') {
+ 			if (ch == EscChar) {
 				state = tilde;
 				continue;
 			}
@@ -260,22 +277,12 @@ tty_input(int fd) {
 				state = base;
 			break;
 		case tilde:
-#define RESTRICTED_HELP_STR "\r\n\
-~^Z - suspend program\r\n\
-~^L - set logging\r\n\
-~q  - query server\r\n\
-~s  - set option\r\n\
-"
-#define UNRESTRICTED_HELP_STR "\r\n\
-~~  - send one tilde (~)\r\n\
-~.  - exit program\r\n\
-~#  - send BREAK\r\n\
-~?  - this message\r\n\
-"
 			state = base;
+ 			 if (ch == EscChar) {
+ 			     /* duplicated escape sends just one, in buf[] */
+ 			     break;
+ 			 }
 			switch (ch) {
-			case '~': /* ~~ - write one ~, which is in buf[] */
-				break;
 			case '.': /* ~. - quitsville */
 				(void) tty_nonblock(fd, 0);
 				quit(0);
@@ -306,15 +313,15 @@ tty_input(int fd) {
 				continue;
 			case '?': /* ~? - help */
 				if (!Restricted)
-					fprintf(stderr, RESTRICTED_HELP_STR);
-				fprintf(stderr, UNRESTRICTED_HELP_STR);
+					restricted_help();
+				unrestricted_help();
 				continue;
  passthrough:
 			default: /* ~mumble - write; `mumble' is in buf[] */
-				tp_senddata(Serv, (u_char *)"~", 1,
+				tp_senddata(Serv, (u_char *)EscChar, 1,
 					    TP_DATA);
 				if (Log != -1)
-					write(Log, "~", 1);
+					write(Log, &EscChar, 1);
 				break;
 			}
 			break;
@@ -600,4 +607,39 @@ quit(int x) {
 	if (Ttyios_set)
 		install_ttyios(Tty, &Ttyios_orig);
 	exit(0);
+}
+
+char *r_help_strs[] = {
+ 	"^Z - suspend program",
+ 	"^L - set logging",
+ 	"q - query server",
+ 	"s - set option",
+ 	NULL
+};
+
+char *help_strs[] = {
+ 	". - exit program",
+ 	"# - send BREAK",
+ 	"? - this message",
+ 	NULL
+};
+
+static void
+restricted_help(void) {
+ 	char **cp;
+
+ 	fprintf(stderr, "\r\n");
+ 	for (cp = r_help_strs; *cp; cp++)
+ 		fprintf(stderr, "%c%s\r\n", EscChar, *cp);
+}
+
+static void
+unrestricted_help(void) {
+ 	char **cp;
+
+ 	fprintf(stderr, "\r\n");
+ 	fprintf(stderr, "%c%c  - send one escape character (%c)\r\n",
+ 		EscChar, EscChar, EscChar);
+ 	for (cp = help_strs; *cp; cp++)
+ 		fprintf(stderr, "%c%s\r\n", EscChar, *cp);
 }
