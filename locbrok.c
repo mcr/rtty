@@ -3,8 +3,10 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.3 1993-12-28 00:49:56 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.4 1993-12-28 01:15:10 vixie Exp $";
 #endif
+
+#ifdef WANT_TCPIP
 
 #include <stdio.h>
 #include <errno.h>
@@ -17,9 +19,17 @@ static char RCSid[] = "$Id: locbrok.c,v 1.3 1993-12-28 00:49:56 vixie Exp $";
 #include "locbrok.h"
 
 #define USAGE_STR "[-s service] [-x debuglev]"
-extern int optind, opterr;
-extern char *optarg;
-extern char *malloc();
+
+#ifdef USE_STDLIB
+#include <stdlib.h>
+#else
+extern	void		*malloc __P((size_t)),
+			free __P((void *));
+#endif
+
+extern	int		optind, opterr,
+			getopt __P((int, char * const *, const char *));
+extern	char		*optarg;
 
 typedef struct reg_db {
 	char *name;
@@ -28,13 +38,13 @@ typedef struct reg_db {
 	struct reg_db *next;
 } reg_db;
 
-char *ProgName = "?";
-char *Service = LB_SERVNAME;
-int Port;
-int Debug = 0;
-fd_set Clients;
-int MaxFD;
-reg_db *RegDB = NULL;
+static	char		*ProgName = "amnesia",
+			*Service = LB_SERVNAME;
+static	int		Port,
+			Debug = 0,
+			MaxFD;
+static	fd_set		Clients;
+static	reg_db		*RegDB = NULL;
 
 main(argc, argv)
 	int argc;
@@ -260,3 +270,14 @@ print() {
 			db->name, db->port, db->client);
 	fprintf(stderr, "---\n");
 }
+
+#else /*WANT_TCPIP*/
+
+#include <stdio.h>
+
+main() {
+	fprintf(stderr, "There is no location broker for this system.\n");
+	exit(1);
+}
+
+#endif /*WANT_TCPIP*/

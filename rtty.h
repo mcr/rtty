@@ -1,7 +1,7 @@
 /* rtty.h - definitions for rtty package
  * vix 01nov91 [written]
  *
- * $Id: rtty.h,v 1.3 1993-12-28 00:49:56 vixie Exp $
+ * $Id: rtty.h,v 1.4 1993-12-28 01:15:10 vixie Exp $
  */
 
 #define ASSERT2(e, m1, m2)	if (!(e)) {int save_errno=errno;\
@@ -34,11 +34,11 @@
 # endif
 #endif
 
-#if (BSD >= 199103)
+#if (BSD >= 199103) || defined(ultrix)
 # define USE_STDLIB
 #endif
 
-#if (BSD >= 199103)
+#if (BSD >= 199103) || defined(ultrix)
 # define USE_UNISTD
 #endif
 

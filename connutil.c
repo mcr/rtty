@@ -3,8 +3,10 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: connutil.c,v 1.3 1993-12-28 00:49:56 vixie Exp $";
+static char RCSid[] = "$Id: connutil.c,v 1.4 1993-12-28 01:15:10 vixie Exp $";
 #endif
+
+#ifdef WANT_TCPIP
 
 #include <stdio.h>
 #include <errno.h>
@@ -133,3 +135,5 @@ sigalrm(x)
 	longjmp(jmpalrm, 1);
 	/*NOTREACHED*/
 }
+
+#endif /*WANT_TCPIP*/

@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.7 1993-12-28 00:49:56 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.8 1993-12-28 01:15:10 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -21,7 +21,9 @@ static char RCSid[] = "$Id: rtty.c,v 1.7 1993-12-28 00:49:56 vixie Exp $";
 
 #include "rtty.h"
 #include "ttyprot.h"
-#include "locbrok.h"
+#ifdef WANT_TCPIP
+# include "locbrok.h"
+#endif
 
 #define USAGE_STR \
 	"[-7] [-x DebugLevel] Serv"
@@ -35,13 +37,9 @@ extern	char		*getlogin __P((void)),
 			*ttyname __P((int));
 #endif
 
-#ifdef USE_STDLIB
-#include <stdlib.h>
-#else
 extern	int		optind, opterr,
 			getopt __P((int, char * const *, const char *));
 extern	char		*optarg;
-#endif
 
 #define Tty STDIN_FILENO
 
@@ -140,6 +138,7 @@ main(argc, argv)
 		       n.sun_path);
 		dprintf(stderr, "rtty.main: connected on fd%d\r\n", Serv);
 		fprintf(stderr, "connected\n");
+#ifdef WANT_TCPIP
 	} else {
 		int loc, len;
 		locbrok lb;
@@ -172,6 +171,7 @@ main(argc, argv)
 		sprintf(buf, "%d", lb.lb_port);
 		Serv = rconnect(cp, buf, NULL,stderr,30);
 		ASSERT(Serv >= 0, "rconnect rtty");
+#endif /*WANT_TCPIP*/
 	}
 
 	{

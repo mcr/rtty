@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1993-12-28 00:49:56 vixie Exp $
+# $Id: Makefile,v 1.7 1993-12-28 01:15:10 vixie Exp $
 
 VERSION = 3.0.dev
 
@@ -10,9 +10,12 @@ DESTBIN = $(DESTPATH)/bin
 
 CC = cc
 CDEBUG = -O -g
-CDEFS = -DDEBUG
+CDEFS = -DDEBUG -UWANT_TCPIP
 CFLAGS = $(CDEBUG) $(CDEFS) -I/usr/local/include
-LIBS = -lresolv
+LIBS = 
+#(if WANT_TCPIP defined)
+# -lresolv
+#(if the resolver needs it)
 # -l44bsd
 
 BINARY = ttysrv rtty locbrok

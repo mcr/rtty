@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.8 1993-12-28 00:49:56 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.9 1993-12-28 01:15:10 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -26,7 +26,9 @@ static char RCSid[] = "$Id: ttysrv.c,v 1.8 1993-12-28 00:49:56 vixie Exp $";
 
 #include "rtty.h"
 #include "ttyprot.h"
-#include "locbrok.h"
+#ifdef WANT_TCPIP
+# include "locbrok.h"
+#endif
 
 struct whoson {
 	char *who, *host, *auth;
@@ -47,9 +49,6 @@ extern	void		*calloc __P((size_t, size_t)),
 			*malloc __P((size_t)),
 			*realloc __P((void *, size_t)),
 			free __P((void *));
-extern	int		optind, opterr,
-			getopt __P((int, char * const *, const char *));
-extern	char		*optarg;
 #endif
 
 #ifdef USE_UNISTD
@@ -58,6 +57,10 @@ extern	char		*optarg;
 extern	int		gethostname __P((char *, int));
 extern	char		*crypt __P((const char *key, const char *setting));
 #endif
+
+extern	int		optind, opterr,
+			getopt __P((int, char * const *, const char *));
+extern	char		*optarg;
 
 #ifdef DEBUG
 int			Debug = 0;
@@ -140,7 +143,12 @@ main(argc, argv)
 			LServSpec = optarg;
 			break;
 		case 'r':
+#ifdef WANT_TCPIP
 			RServSpec = optarg;
+#else
+			USAGE((stderr, "%s: -r not supported on this system\n",
+			       ProgName));
+#endif
 			break;
 		case 't':
 			TtySpec = optarg;
@@ -229,6 +237,7 @@ main(argc, argv)
 		ASSERT(0<=bind(LServ, (struct sockaddr *)&n, sizeof n),
 		       n.sun_path);
 	}
+#ifdef WANT_TCPIP
 	if (RServSpec) {
 		struct sockaddr_in n;
 		int nlen = sizeof n;
@@ -261,6 +270,7 @@ main(argc, argv)
 			       "write locbrok")
 		}
 	}
+#endif
 
 	if (LogSpec) {
 		open_log();
