@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.11 1994-05-16 06:36:09 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.12 1994-05-17 07:14:15 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -68,8 +68,9 @@ extern	char		*optarg;
 int			Debug = 0;
 #endif
 
-extern	int		rconnect(char *host, char *service,
-				 FILE *verbose, FILE *errors, int timeout);
+extern	int		rconnect __P((char *host, char *service,
+				      FILE *verbose, FILE *errors,
+				      int timeout));
 extern	char		Version[];
 
 static	char		*ProgName = "amnesia",

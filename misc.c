@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: misc.c,v 1.2 1994-05-16 22:36:07 vixie Exp $";
+static char RCSid[] = "$Id: misc.c,v 1.3 1994-05-17 07:14:15 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -109,7 +109,7 @@ char *
 strdup(s)
 	const char *s;
 {
-	char *ret = malloc(strlen(s) + 1);
+	char *ret = (char *) malloc(strlen(s) + 1);
 
 	if (!ret) {
 		perror("malloc");
