@@ -1,7 +1,7 @@
 /* ttysrv - serve a tty to stdin/stdout, a named pipe, or a network socket
  * vix 28may91 [written]
  *
- * $Id: ttysrv.c,v 1.1 1992-01-02 02:04:18 vixie Exp $
+ * $Id: ttysrv.c,v 1.2 1992-04-18 04:16:58 vixie Exp $
  */
 
 #include <stdio.h>
@@ -31,7 +31,7 @@ char *ProgName;
 char *ServSpec = NULL;	int Serv;
 char *TtySpec = NULL;	int Tty = -1;	struct termios Ttyios, Ttyios_orig;
 int Ttyios_set = 0;
-char *LogSpec = NULL;	int Log = -1;
+char *LogSpec = NULL;	FILE *LogF = NULL;
 int Baud = 9600;	speed_t SysBaud;
 char *Parity = "none";	unsigned int SysParity;
 char ParityBuf[TP_MAXVAR];
@@ -49,16 +49,19 @@ sigpipe() {
 }
 
 sighup() {
-	if (Log != -1) {
-		close(Log);
+	if (LogF) {
+		fclose(LogF);
+		LogF = NULL;
 		open_log();
 	}
 }
 
 open_log() {
-	if (0 > (Log = open(LogSpec, O_CREAT|O_WRONLY|O_APPEND, 0644))) {
-		fprintf(stderr, "%s: can't open log file ", ProgName);
+	if (LogF = fopen(LogSpec, "a")) {
+		setlinebuf(LogF);
+	} else {
 		perror(LogSpec);
+		fprintf(stderr, "%s: can't open log file\n", ProgName);
 	}
 }
 
@@ -266,8 +269,10 @@ tty_input(fd) {
 	}
 	dprintf(stderr, "ttysrv.tty_input: %d bytes read on fd%d\n",
 		nchars, fd);
-	if (Log != -1) {
-		write(Log, buf, nchars);
+	if (LogF) {
+		if (1 != fwrite(buf, nchars, 1, LogF)) {
+			perror("fwrite(LogF)");
+		}
 	}
 	for (fd = 0;  fd <= highest_fd;  fd++) {
 		int x;
@@ -335,8 +340,10 @@ client_input(fd) {
 		}
 		dprintf(stderr, "ttysrv.client_input: %d bytes read on fd%d\n",
 			nchars, fd);
-		if (Log != -1) {
-			write(Log, buf, nchars);
+		if (LogF) {
+			if (1 != fwrite(buf, nchars, 1, LogF)) {
+				perror("fwrite(LogF)");
+			}
 		}
 		nchars = write(Tty, T.c, nchars);
 		dprintf(stderr, "ttysrv.client_input: wrote %d bytes @fd%d\n",
