@@ -3,9 +3,11 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttyprot.c,v 1.3 1992-09-10 23:30:52 vixie Exp $";
+static char RCSid[] = "$Id: ttyprot.c,v 1.4 1992-11-12 18:26:29 vixie Exp $";
 #endif
 
+#include <stdio.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 
@@ -59,4 +61,25 @@ tp_sendctl(fd, f, i, c)
 		il++;
 	}
 	return writev(fd, iov, il);
+}
+
+
+void
+cat_v(file, buf, nchars)
+	FILE *file;
+	u_char *buf;
+	int nchars;
+{
+	while (nchars-- > 0) {
+		int c = *buf++;
+
+		if (isprint(c)) {
+			fputc(c, file);
+		} else if (iscntrl(c)) {
+			fputc('^', file);
+			fputc('@' + c, file);	/* XXX assumes ASCII */
+		} else {
+			fprintf(file, "\\%03o", c);
+		}
+	}
 }
