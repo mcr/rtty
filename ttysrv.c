@@ -1,7 +1,7 @@
 /* ttysrv - serve a tty to stdin/stdout, a named pipe, or a network socket
  * vix 28may91 [written]
  *
- * $Id: ttysrv.c,v 1.3 1992-06-23 16:27:18 vixie Exp $
+ * $Id: ttysrv.c,v 1.4 1992-07-06 18:42:55 vixie Exp $
  */
 
 #include <stdio.h>
@@ -25,6 +25,9 @@
 #define USAGE_STR \
 	"-s Serv -t Tty -l Log -b Baud -p Parity -w Wordsize -i Pidfile"
 
+extern char *calloc(), *malloc(), *realloc();
+extern void free();
+
 extern int optind, opterr;
 extern char *optarg;
 
@@ -43,6 +46,12 @@ int Debug = 0;
 ttyprot T;
 unsigned short Port;
 int LocBrok = -1;
+time_t Now;
+
+struct whoson {
+	char *who;
+	time_t lastInput;
+} **WhosOn;
 
 struct timeval TOinput = {0, 250000};	/* 0.25 second */
 struct timeval TOflush = {1, 0};	/* 1 second */
@@ -65,7 +74,7 @@ sighup() {
 }
 
 open_log() {
-	if (!(LogF = fopen(LogSpec, "a"))) {
+	if (!(LogF = fopen(LogSpec, "a+"))) {
 		perror(LogSpec);
 		fprintf(stderr, "%s: can't open log file\n", ProgName);
 	}
@@ -215,6 +224,9 @@ main(argc, argv)
 		}
 	}
 
+	WhosOn = (struct whoson **) calloc(getdtablesize(),
+					  sizeof(struct whoson **));
+
 	main_loop();
 }
 
@@ -250,6 +262,7 @@ main_loop()
 			fflush(LogF);
 			LogDirty = FALSE;
 		}
+		Now = time(0);
 		dprintf(stderr, "ttysrv.main_loop: select->%d\n", nfound);
 		for (fd = 0; fd <= highest_fd; fd++) {
 			if (!FD_ISSET(fd, &readfds)) {
@@ -332,12 +345,21 @@ serv_input(fd) {
 	if (fd > highest_fd) {
 		highest_fd = fd;
 	}
+	if (!WhosOn[fd]) {
+		WhosOn[fd] = (struct whoson *) malloc(sizeof(struct whoson));
+		WhosOn[fd]->who = NULL;
+		WhosOn[fd]->lastInput = Now;
+	}
 }
 
 client_input(fd) {
 	register int nchars;
 	register int i, new;
 	register unsigned int o;
+
+	if (WhosOn[fd]) {
+		WhosOn[fd]->lastInput = Now;
+	}
 
 	/* read the fixed part of the ttyprot (everything but the array)
 	 */
@@ -374,6 +396,7 @@ client_input(fd) {
 	case TP_BREAK:
 		dprintf(stderr, "ttysrv.client_input: sending break\n");
 		tcsendbreak(Tty, 0);
+		tp_senddata(fd, "[BREAK]", 7);
 		dprintf(stderr, "ttysrv.client_input: done sending break\n");
 		break;
 	case TP_BAUD:
@@ -431,6 +454,70 @@ client_input(fd) {
 			tp_sendctl(fd, TP_WORDSIZE, 1, NULL);
 		}
 		break;
+	case TP_WHOSON:
+		if (o & TP_QUERY) {
+			int iwho;
+
+			for (iwho = getdtablesize()-1;  iwho >= 0;  iwho--) {
+				struct whoson *who = WhosOn[iwho];
+				char data[TP_MAXVAR];
+				int idle;
+
+				if (!who)
+					continue;
+				idle = Now - who->lastInput;
+				sprintf(data, "[%s (idle %d sec%s)]\r\n",
+					who->who ?who->who :"undeclared",
+					idle, (idle==1) ?"" :"s");
+				tp_senddata(fd, data, strlen(data));
+			}
+			break;
+		}
+		if (i != (nchars = read(fd, T.c, i))) {
+			dprintf(stderr, "client_input: read#2=%d(%d) fd%d: ",
+				nchars, i, fd);
+			if (Debug) perror("read#2");
+			close_client(fd);
+			break;
+		}
+		dprintf(stderr, "ttysrv.client_input: %d bytes read on fd%d\n",
+			nchars, fd);
+		if (WhosOn[fd]) {
+			if (!WhosOn[fd]->who) {
+				WhosOn[fd]->who = malloc(i+1);
+			} else {
+				WhosOn[fd]->who = realloc(i+1);
+			}
+			strncpy(WhosOn[fd]->who, T.c, i);
+			WhosOn[fd]->who[i] = '\0';
+		}
+		break;
+	case TP_TAIL:
+		if (!(o & TP_QUERY))
+			break;
+		if (!LogF)
+			break;
+		fflush(LogF);
+		LogDirty = FALSE;
+		if (0 > fseek(LogF, -1024, SEEK_END))
+			break;
+		{ /*local*/
+			char buf[TP_MAXVAR];
+			int len, something = FALSE;
+
+			while (0 < (len = fread(buf, sizeof(char), sizeof buf,
+						LogF))) {
+				if (!something) {
+					tp_senddata(fd, "===\r\n", 5);
+					something = TRUE;
+				}
+				tp_senddata(fd, buf, len);
+			}
+			if (something) {
+				tp_senddata(fd, "===\r\n", 5);
+			}
+		}
+		break;
 	default:
 		fprintf(stderr, "T.f was %04x\n", ntohs(T.f));
 		break;
@@ -441,6 +528,13 @@ close_client(fd) {
 	dprintf(stderr, "close_client: fd%d\n", fd);
 	close(fd);
 	FD_CLR(fd, &Clients);
+	if (WhosOn[fd]) {
+		if (WhosOn[fd]->who) {
+			free((char *) WhosOn[fd]->who);
+		}
+		free((char *) WhosOn[fd]);
+		WhosOn[fd] = (struct whoson *) NULL;
+	}
 }
 
 struct baudtab { int baud, sysbaud; } baudtab[] = {

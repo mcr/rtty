@@ -1,13 +1,14 @@
 /* rtty - client of ttysrv
  * vix 28may91 [written]
  *
- * $Id: rtty.c,v 1.2 1992-06-23 16:27:18 vixie Exp $
+ * $Id: rtty.c,v 1.3 1992-07-06 18:42:55 vixie Exp $
  */
 
 #include <stdio.h>
 #include <termio.h>
 #include <termios.h>
 #include <errno.h>
+#include <pwd.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/file.h>
@@ -30,7 +31,7 @@ ttyprot T;
 extern int optind, opterr;
 extern char *optarg;
 
-char *ProgName;
+char *ProgName, WhoAmI[TP_MAXVAR], Hostname[MAXHOSTNAMELEN];
 char *ServSpec = NULL;		int Serv;
 char LogSpec[MAXPATHLEN];	int Log = -1;
 int Debug = 0;
@@ -52,9 +53,32 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	char ch;
+	extern int gethostname();
+	extern char *getlogin(), *ttyname();
+	char ch, *tmpU, *tmpT;
 
 	ProgName = argv[0];
+
+	if (0 > gethostname(Hostname, MAXHOSTNAMELEN)) {
+		strcpy(Hostname, "amnesia");
+	}
+
+	if (!(tmpU = getlogin())) {
+		struct passwd *pw = getpwuid(getuid());
+
+		if (pw) {
+			tmpU = pw->pw_name;
+		} else {
+			tmpU = "nobody";
+		}
+	}
+
+	if (!(tmpT = ttyname(STDIN))) {
+		tmpT = "/dev/null";
+	}
+
+	sprintf(WhoAmI, "%s%%%s@%s", tmpU, tmpT, Hostname);
+
 	while ((ch = getopt(argc, argv, "s:x:7")) != EOF) {
 		switch (ch) {
 		case 's':
@@ -122,7 +146,7 @@ main(argc, argv)
 		ASSERT(Serv >= 0, "rconnect rtty");
 	}
 
-	fprintf(stderr, "[connected]\n");
+	fprintf(stderr, "[%s connected]\n", WhoAmI);
 
 	{
 		tcgetattr(Tty, &Ttyios);
@@ -139,6 +163,9 @@ main(argc, argv)
 		tcsetattr(Tty, TCSANOW, &Ttyios);
 	}
 
+	fprintf(stderr, "[use ~qT to see the recent tty activity;\r\n");
+	fprintf(stderr, " use ~qW to see who else is on.]\r\n");
+	tp_sendctl(Serv, TP_WHOSON, strlen(WhoAmI), WhoAmI);
 	main_loop();
 }
 
@@ -208,6 +235,7 @@ tty_input(fd) {
 ~.  - exit program\r\n\
 ~^Z - suspent program\r\n\
 ~^L - set logging\r\n\
+~q  - query server\r\n\
 ~s  - set option\r\n\
 ~#  - send BREAK\r\n\
 ~?  - this message\r\n\
@@ -229,8 +257,10 @@ tty_input(fd) {
 				kill(getpid(), SIGTSTP);
 				tcsetattr(Tty, TCSANOW, &Ttyios);
 				continue;
+			case 'q': /* ~q - query server */
+				/*FALLTHROUGH*/
 			case 's': /* ~s - set option */
-				set();
+				query_or_set(ch);
 				continue;
 			case '#': /* ~# - send break */
 				tp_sendctl(Serv, TP_BREAK, 0, NULL);
@@ -256,56 +286,96 @@ tty_input(fd) {
 	}
 }
 
-set() {
+query_or_set(ch)
+	char ch;
+{
 	char vmin = Ttyios.c_cc[VMIN];
 	char buf[64];
+	int set;
 	int new;
 
-	fputs("~set ", stderr);
+	if (ch == 'q')
+		set = 0;
+	else if (ch == 's')
+		set = 1;
+	else
+		return;
+
+	fputs(set ?"~set " :"~query ", stderr);
 	Ttyios.c_cc[VMIN] = 1;
 	tcsetattr(Tty, TCSANOW, &Ttyios);
 	if (1 == read(Tty, buf, 1)) {
 		switch (buf[0]) {
 		case '\n':
 		case '\r':
+		case 'a':
 			fputs("(show all)\r\n", stderr);
 			tp_sendctl(Serv, TP_BAUD|TP_QUERY, 0, NULL);
 			tp_sendctl(Serv, TP_PARITY|TP_QUERY, 0, NULL);
 			tp_sendctl(Serv, TP_WORDSIZE|TP_QUERY, 0, NULL);
 			break;
 		case 'b':
-			fputs("baud ", stderr);
-			tcsetattr(Tty, TCSANOW, &Ttyios_orig);
-			fgets(buf, sizeof buf, stdin);
-			if (buf[strlen(buf)-1] == '\n') {
-				buf[strlen(buf)-1] = '\0';
+			if (!set) {
+				fputs("\07\r\n", stderr);
+			} else {
+				fputs("baud ", stderr);
+				tcsetattr(Tty, TCSANOW, &Ttyios_orig);
+				fgets(buf, sizeof buf, stdin);
+				if (buf[strlen(buf)-1] == '\n') {
+					buf[strlen(buf)-1] = '\0';
+				}
+				if (!(new = atoi(buf))) {
+					break;
+				}
+				tp_sendctl(Serv, TP_BAUD, new, NULL);
 			}
-			if (!(new = atoi(buf))) {
-				break;
-			}
-			tp_sendctl(Serv, TP_BAUD, new, NULL);
 			break;
 		case 'p':
-			fputs("parity ", stderr);
-			tcsetattr(Tty, TCSANOW, &Ttyios_orig);
-			fgets(buf, sizeof buf, stdin);
-			if (buf[strlen(buf)-1] == '\n') {
-				buf[strlen(buf)-1] = '\0';
+			if (!set) {
+				fputs("\07\r\n", stderr);
+			} else {
+				fputs("parity ", stderr);
+				tcsetattr(Tty, TCSANOW, &Ttyios_orig);
+				fgets(buf, sizeof buf, stdin);
+				if (buf[strlen(buf)-1] == '\n') {
+					buf[strlen(buf)-1] = '\0';
+				}
+				tp_sendctl(Serv, TP_PARITY, strlen(buf),
+					   (unsigned char *)buf);
 			}
-			tp_sendctl(Serv, TP_PARITY, strlen(buf),
-				   (unsigned char *)buf);
 			break;
 		case 'w':
-			fputs("wordsize ", stderr);
-			tcsetattr(Tty, TCSANOW, &Ttyios_orig);
-			fgets(buf, sizeof buf, stdin);
-			if (!(new = atoi(buf))) {
-				break;
+			if (!set) {
+				fputs("\07\r\n", stderr);
+			} else {
+				fputs("wordsize ", stderr);
+				tcsetattr(Tty, TCSANOW, &Ttyios_orig);
+				fgets(buf, sizeof buf, stdin);
+				if (!(new = atoi(buf))) {
+					break;
+				}
+				tp_sendctl(Serv, TP_WORDSIZE, new, NULL);
 			}
-			tp_sendctl(Serv, TP_WORDSIZE, new, NULL);
+			break;
+		case 'T':
+			if (set) {
+				fputs("\07\r\n", stderr);
+			} else {
+				tp_sendctl(Serv, TP_TAIL|TP_QUERY, 0, NULL);
+			}
+			break;
+		case 'W':
+			if (set) {
+				fputs("\07\r\n", stderr);
+			} else {
+				tp_sendctl(Serv, TP_WHOSON|TP_QUERY, 0, NULL);
+			}
 			break;
 		default:
-			fputs("[baud parity wordsize]\r\n", stderr);
+			if (set)
+				fputs("[all baud parity wordsize]\r\n", stderr);
+			else
+				fputs("[Whoson Tail]\r\n", stderr);
 			break;
 		}
 	}
