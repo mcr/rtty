@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.11 1996-08-23 21:39:14 vixie Exp $
+# $Id: Makefile,v 1.12 1996-08-23 22:09:30 vixie Exp $
 
-VERSION = 3.1.dev
+VERSION = 3.2
 
 VPATH = ../src
 
@@ -38,7 +38,7 @@ all: $(ALL)
 
 clean:; rm -rf $(ALL) *.o *.BAK *.CKP *~
 
-kit:; cshar -o ../kit README Makefile *.c *.h *.sh
+kit:; shar README Makefile *.c *.h *.sh > kit
 
 bin.tar:; tar cf bin.tar $(ALL)
 

@@ -3,20 +3,22 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: connutil.c,v 1.6 1996-08-23 21:39:14 vixie Exp $";
+static char RCSid[] = "$Id: connutil.c,v 1.7 1996-08-23 22:09:30 vixie Exp $";
 #endif
 
 #ifdef WANT_TCPIP
 
-#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+
 #include <errno.h>
-#include <string.h>
 #include <netdb.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "rtty.h"
 

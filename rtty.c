@@ -3,20 +3,21 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.12 1994-05-17 07:14:15 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.13 1996-08-23 22:09:30 vixie Exp $";
 #endif
 
-#include <stdio.h>
-#include <termios.h>
-#include <errno.h>
-#include <pwd.h>
-#include <signal.h>
-#include <string.h>
-#include <sys/file.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/file.h>
 #include <sys/un.h>
 #include <sys/param.h>
+
+#include <errno.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <pwd.h>
+#include <termios.h>
 
 #include "rtty.h"
 #ifdef NEED_BITYPES_H
@@ -203,7 +204,7 @@ main_loop()
 
 	for (;;) {
 		fd_set readfds, exceptfds;
-		register int nfound, fd;
+		int nfound, fd;
 
 		readfds = fds;
 		exceptfds = fds;
@@ -248,14 +249,14 @@ main_loop()
 
 static void
 tty_input(fd) {
-	unsigned char buf[1];
 	static enum {base, need_cr, tilde} state = base;
+	u_char buf[1];
 
 #if 0
 	fcntl(Tty, F_SETFL, fcntl(Tty, F_GETFL, 0)|O_NONBLOCK);
 #endif
 	while (1 == read(fd, buf, 1)) {
-		register unsigned char ch = buf[0];
+		u_char ch = buf[0];
 
 		switch (state) {
 		case base:
@@ -407,7 +408,7 @@ query_or_set(ch)
 				buf[strlen(buf)-1] = '\0';
 			}
 			tp_sendctl(Serv, TP_PARITY, strlen(buf),
-				   (unsigned char *)buf);
+				   (u_char *)buf);
 		}
 		break;
 	case 'w':
@@ -487,10 +488,9 @@ logging() {
 
 static void
 serv_input(fd) {
-	register int nchars;
-	register int i;
-	register unsigned int f, o, t;
 	char passwd[TP_MAXVAR], s[3], *c, *crypt();
+	int nchars, i;
+	u_int f, o, t;
 
 	if (0 >= (nchars = read(fd, &T, TP_FIXED))) {
 		fprintf(stderr, "serv_input: read(%d) returns %d\n",
@@ -511,7 +511,7 @@ serv_input(fd) {
 			server_died();
 		}
 		if (SevenBit) {
-			register int i;
+			int i;
 
 			for (i = 0;  i < nchars;  i++) {
 				T.c[i] &= 0x7f;

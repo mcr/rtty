@@ -3,8 +3,19 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.13 1996-08-23 21:39:14 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.14 1996-08-23 22:09:30 vixie Exp $";
 #endif
+
+#include <sys/file.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/time.h>
+#include <sys/param.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <stdio.h>
 #include <termios.h>
@@ -13,15 +24,6 @@ static char RCSid[] = "$Id: ttysrv.c,v 1.13 1996-08-23 21:39:14 vixie Exp $";
 #include <string.h>
 #include <netdb.h>
 #include <pwd.h>
-#include <sys/file.h>
-#include <sys/param.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/time.h>
-#include <sys/param.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
 #include "rtty.h"
 #ifdef NEED_BITYPES_H
@@ -88,7 +90,7 @@ static	int		LServ = -1,
 			highest_fd = -1,
 			LocBrok = -1,
 			Sigpiped = 0;
-static	unsigned short	Port;
+static	u_int		Port;
 static	struct termios	Ttyios, Ttyios_orig;
 static	FILE		*LogF = NULL;
 static	fd_set		Clients;
@@ -103,7 +105,7 @@ static	struct whoson	**WhosOn;
 static	char		*handle_option __P((char *));
 static	void		main_loop __P((void)),
 			tty_input __P((int, int)),
-			broadcast __P((unsigned char *, int, unsigned int)),
+			broadcast __P((u_char *, int, u_int)),
 			sigpipe __P((int)),
 			sighup __P((int)),
 			open_log __P((void)),
@@ -310,7 +312,7 @@ main_loop()
 
 	for (;;) {
 		fd_set readfds;
-		register int nfound, fd;
+		int nfound, fd;
 
 		readfds = Clients;
 		if (LServ != -1)
@@ -354,8 +356,8 @@ main_loop()
 
 static void
 tty_input(fd, aggregate) {
+	u_char buf[TP_MAXVAR];
 	int nchars, x;
-	unsigned char buf[TP_MAXVAR];
 
 	nchars = 0;
 	do {
@@ -390,11 +392,11 @@ tty_input(fd, aggregate) {
 
 static void
 broadcast(buf, nchars, typ)
-	unsigned char *buf;
+	u_char *buf;
 	int nchars;
-	unsigned int typ;
+	u_int typ;
 {
-	register int fd, x;
+	int fd, x;
 
 	for (fd = 0;  fd <= highest_fd;  fd++) {
 		if (!FD_ISSET(fd, &Clients)) {
@@ -477,12 +479,11 @@ serv_input(fd) {
 
 static void
 client_input(fd) {
-	register int nchars;
-	register int i, new, query;
-	unsigned int f;
-	unsigned short salt;
-	struct passwd *pw, *getpwnam();
+	struct passwd *pw;
+	int nchars, i, new, query;
+	u_short salt;
 	char s[3];
+	u_int f;
 
 	if (!WhosOn[fd])
 		return;
@@ -577,7 +578,7 @@ client_input(fd) {
 			break;
 		if (query) {
 			tp_sendctl(fd, TP_PARITY|TP_QUERY,
-				   strlen(Parity), (unsigned char *)Parity);
+				   strlen(Parity), (u_char *)Parity);
 			break;
 		}
 		if (-1 == (new = find_parity((char *)T.c))) {
@@ -816,7 +817,7 @@ find_parity(parity)
 
 static void
 set_parity(parity)
-	unsigned int parity;
+	u_int parity;
 {
 	Ttyios.c_cflag &= ~(PARENB|PARODD);
 	Ttyios.c_cflag |= parity;
@@ -836,7 +837,7 @@ find_wordsize(wordsize) {
 
 static void
 set_wordsize(wordsize)
-	unsigned int wordsize;
+	u_int wordsize;
 {
 	Ttyios.c_cflag &= ~CSIZE;
 	Ttyios.c_cflag |= wordsize;

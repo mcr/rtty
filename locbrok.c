@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.6 1996-08-23 21:39:14 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.7 1996-08-23 22:09:30 vixie Exp $";
 #endif
 
 #ifdef DEBUG
@@ -12,12 +12,14 @@ int Debug = 0;
 
 #ifdef WANT_TCPIP
 
-#include <stdio.h>
-#include <errno.h>
-#include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
+
+#include <errno.h>
+#include <netdb.h>
+#include <stdio.h>
 
 #include "rtty.h"
 #include "locbrok.h"
@@ -122,8 +124,7 @@ server() {
 	listen(serv, 5);
 	for (;;) {
 		fd_set readfds;
-		int nset;
-		register int fd;
+		int nset, fd;
 
 		readfds = Clients;
 		FD_SET(serv, &readfds);
@@ -266,11 +267,11 @@ static void
 rm_byclient(client)
 	u_int client;
 {
-	register reg_db *cur = RegDB, *prev = NULL;
+	reg_db *cur = RegDB, *prev = NULL;
 
 	while (cur) {
 		if (cur->client == client) {
-			register reg_db *tmp = cur;
+			reg_db *tmp = cur;
 
 			if (prev)
 				prev->next = cur->next;

@@ -1,7 +1,7 @@
 /* ttyproto.h - define protocol used by ttysrv and its clients
  * vix 29may91 [written]
  *
- * $Id: ttyprot.h,v 1.6 1993-12-28 00:49:56 vixie Exp $
+ * $Id: ttyprot.h,v 1.7 1996-08-23 22:09:30 vixie Exp $
  */
 
 #include <termios.h>
@@ -22,13 +22,13 @@
 #define	TP_OPTIONMASK	0xff00
 #define TP_QUERY	0x0100
 
-#define	TP_FIXED	(sizeof(unsigned short) + sizeof(unsigned short))
+#define	TP_FIXED	(sizeof(u_int16_t) + sizeof(u_int16_t))
 #define	TP_MAXVAR	468	/* 512 - 40 - TP_FIXED */
 
 typedef struct ttyprot {
 	u_int16_t	f;
 	u_int16_t	i;
-	unsigned char	c[TP_MAXVAR];
+	u_char		c[TP_MAXVAR];
 } ttyprot;
 
 int tp_senddata __P((int, u_char *, int, int));

@@ -3,15 +3,16 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttyprot.c,v 1.7 1994-05-16 06:36:09 vixie Exp $";
+static char RCSid[] = "$Id: ttyprot.c,v 1.8 1996-08-23 22:09:30 vixie Exp $";
 #endif
 
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <termios.h>
 #include <sys/param.h>
 #include <sys/uio.h>
+
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
+#include <termios.h>
 
 #include "rtty.h"
 #ifdef NEED_BITYPES_H
@@ -25,13 +26,12 @@ extern	int		Debug;
 
 int
 tp_senddata(fd, buf, len, typ)
-	int fd;
-	register unsigned char *buf;
-	register int len, typ;
+	int len, typ, fd;
+	u_char *buf;
 {
-	register int i;
-	ttyprot t;
 	struct iovec iov[2];
+	ttyprot t;
+	int i;
 
 #if DEBUG
 	if (Debug >= 5) {
@@ -60,14 +60,13 @@ tp_senddata(fd, buf, len, typ)
 int
 tp_sendctl(fd, f, i, c)
 	int fd;
-	unsigned int f;
-	unsigned int i;
-	unsigned char *c;
+	u_int f, i;
+	u_char *c;
 {
-	ttyprot t;
 	struct iovec iov[2];
-	register int il = 0;
+	ttyprot t;
 	int len = c ?min(strlen((char *)c), TP_MAXVAR) :0;
+	int il = 0;
 
 #if DEBUG
 	if (Debug >= 5) {

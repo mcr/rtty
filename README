@@ -1,7 +1,11 @@
-rtty V2.5 -- multiuser "tip"/"cu" replacement with logging
+rtty -- multiuser "tip"/"cu" replacement with logging
 Paul Vixie <vixie@pa.dec.com> -- 1-January-1992 [V2.0 released]
 Paul Vixie <paul@vix.com> -- 27-December-1993 [V3.0 released]
-$Id: README,v 1.5 1993-12-28 00:49:56 vixie Exp $
+$Id: README,v 1.6 1996-08-23 22:09:30 vixie Exp $
+
+3.2 Release Notes (23-August-1996)
+
+Portability, bug fixes, and a few miscellaneous features like DESTPATH/other/*.
 
 3.0 Release Notes (27-Devember-1993)
 
@@ -149,6 +153,13 @@ subdirectories:
 		% cat > /rtty/opt/beast.cons
 		-7
 		^D
+    /rtty/owner
+	this directory is optional.  if you created it and put in it files
+	of the form $HOST.sock, then when the server for that HOST is 
+	started, the socket will be chown'd to the contents of this file.
+	typical use is to assign group ownership (by making the file contain
+	root.some-group) to control access to consoles by membership in a 
+	particular group.
 
 So OK, you've chosen a DESTPATH, created and populated it, and edited
 the Makefile.  Type "make" and if all goes well, type "make install" and

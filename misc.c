@@ -3,17 +3,17 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: misc.c,v 1.4 1996-08-23 21:39:14 vixie Exp $";
+static char RCSid[] = "$Id: misc.c,v 1.5 1996-08-23 22:09:30 vixie Exp $";
 #endif
 
-#include <stdio.h>
+#include <sys/param.h>
+
+#include <netinet/in.h>
+
 #include <ctype.h>
+#include <stdio.h>
 #include <string.h>
 #include <termios.h>
-#include <sys/param.h>
-#ifdef NEED_INET_ATON
-# include <netinet/in.h>
-#endif
 
 #include "rtty.h"
 #ifdef NEED_BITYPES_H

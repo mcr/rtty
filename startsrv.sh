@@ -1,9 +1,10 @@
 #!/bin/sh
 
-# $Id: startsrv.sh,v 1.3 1993-12-28 00:49:56 vixie Exp $
+# $Id: startsrv.sh,v 1.4 1996-08-23 22:09:30 vixie Exp $
 
 default_options='-b 9600 -w 8 -p none'
 default_sock_prot='ug=rw,o='
+default_sock_owner='root.system'
 default_log_prot='u=rw,g=r,o='
 
 for host
@@ -46,6 +47,14 @@ do
 		sock_prot="$default_sock_prot"
 	fi
 
+	if [ -s DESTPATH/owner/${host}.sock ]; then
+		sock_prot=`cat DESTPATH/owner/${host}.sock`
+	elif [ -s DESTPATH/owner/DEFAULT.sock ]; then
+		sock_prot=`cat DESTPATH/owner/DEFAULT.sock`
+	else
+		sock_prot="$default_sock_owner"
+	fi
+
 	if [ -s DESTPATH/prot/${host}.log ]; then
 		log_prot=`cat DESTPATH/prot/${host}.log`
 	elif [ -s DESTPATH/prot/DEFAULT.log ]; then
@@ -65,6 +74,7 @@ do
 	echo -n " newpid=$!"
 	sleep 1
 	chmod $sock_prot DESTPATH/sock/$host
+	chmod $sock_owner DESTPATH/sock/$host
 	chmod $log_prot DESTPATH/log/$host
 	echo " done."
 done
