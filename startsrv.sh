@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: startsrv.sh,v 1.6 1996-08-23 23:46:42 vixie Exp $
+# $Id: startsrv.sh,v 1.7 1996-08-23 23:51:09 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -63,11 +63,11 @@ do
 	fi
 
 	if [ -s DESTPATH/owner/${host}.sock ]; then
-		sock_prot=`cat DESTPATH/owner/${host}.sock`
+		sock_owner=`cat DESTPATH/owner/${host}.sock`
 	elif [ -s DESTPATH/owner/DEFAULT.sock ]; then
-		sock_prot=`cat DESTPATH/owner/DEFAULT.sock`
+		sock_owner=`cat DESTPATH/owner/DEFAULT.sock`
 	else
-		sock_prot="$default_sock_owner"
+		sock_owner="$default_sock_owner"
 	fi
 
 	if [ -s DESTPATH/prot/${host}.log ]; then
