@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.6 1992-09-10 23:30:52 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.7 1992-11-12 18:25:41 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -32,6 +32,7 @@ extern void free();
 
 extern int optind, opterr;
 extern char *optarg;
+extern char Version[];
 
 char *ProgName;
 char *ServSpec = NULL;	int Serv;
@@ -301,8 +302,16 @@ tty_input(fd, aggregate) {
 	if (nchars == 0) {
 		return;
 	}
-	dprintf(stderr, "ttysrv.tty_input: %d bytes read on fd%d\n",
-		nchars, fd);
+	if (Debug) {
+		fprintf(stderr, "ttysrv.tty_input: %d bytes read on fd%d",
+			nchars, fd);
+		if (Debug > 1) {
+			fputs(": \"", stderr);
+			cat_v(stderr, buf, nchars);
+			fputs("\"", stderr);
+		}
+		fputc('\n', stderr);
+	}
 	if (LogF) {
 		if (nchars != fwrite(buf, sizeof(char), nchars, LogF)) {
 			perror("fwrite(LogF)");
@@ -390,8 +399,18 @@ client_input(fd) {
 			close_client(fd);
 			break;
 		}
-		dprintf(stderr, "ttysrv.client_input: %d bytes read on fd%d\n",
-			nchars, fd);
+		if (Debug) {
+			fprintf(stderr,
+				"ttysrv.client_input: %d bytes read on fd%d",
+				nchars, fd);
+			if (Debug > 1) {
+				fputs(": \"", stderr);
+				cat_v(stderr, T.c, nchars);
+				fputs("\"", stderr);
+			}
+			fputc('\n', stderr);
+		}
+# if WANT_CLIENT_LOGGING
 		if (LogF) {
 			if (nchars != fwrite(T.c, sizeof(char), nchars, LogF)){
 				perror("fwrite(LogF)");
@@ -399,6 +418,7 @@ client_input(fd) {
 				LogDirty = TRUE;
 			}
 		}
+# endif /*WANT_CLIENT_LOGGING*/
 		nchars = write(Tty, T.c, nchars);
 		dprintf(stderr, "ttysrv.client_input: wrote %d bytes @fd%d\n",
 			nchars, Tty);
@@ -407,6 +427,9 @@ client_input(fd) {
 		dprintf(stderr, "ttysrv.client_input: sending break\n");
 		tcsendbreak(Tty, 0);
 		tp_senddata(fd, "BREAK", 5, TP_NOTICE);
+		if (LogF) {
+			fputs("[BREAK]", LogF);
+		}
 		dprintf(stderr, "ttysrv.client_input: done sending break\n");
 		break;
 	case TP_BAUD:
@@ -421,6 +444,9 @@ client_input(fd) {
 			SysBaud = new;
 			set_baud();
 			install_ttyios();
+			if (LogF) {
+				fprintf(LogF, "[baud now %d]", i);
+			}
 			tp_sendctl(fd, TP_BAUD, 1, NULL);
 		}
 		break;
@@ -446,6 +472,9 @@ client_input(fd) {
 			SysParity = new;
 			set_parity();
 			install_ttyios();
+			if (LogF) {
+				fprintf(LogF, "[parity now %s]", (char*) T.c);
+			}
 			tp_sendctl(fd, TP_PARITY, 1, NULL);
 		}
 		break;
@@ -461,6 +490,9 @@ client_input(fd) {
 			SysWordsize = new;
 			set_wordsize();
 			install_ttyios();
+			if (LogF) {
+				fprintf(LogF, "[wordsize now %d]", i);
+			}
 			tp_sendctl(fd, TP_WORDSIZE, 1, NULL);
 		}
 		break;
@@ -515,9 +547,13 @@ client_input(fd) {
 			break;
 		fflush(LogF);
 		LogDirty = FALSE;
-		if (0 > fseek(LogF, -1024, SEEK_END))
+		if (ftell(LogF) < 1024L) {
 			if (0 > fseek(LogF, 0, SEEK_SET))
 				break;
+		} else {
+			if (0 > fseek(LogF, -1024, SEEK_END))
+				break;
+		}
 		{ /*local*/
 			char buf[TP_MAXVAR];
 			int len, something = FALSE;
@@ -534,6 +570,11 @@ client_input(fd) {
 				tp_senddata(fd, "tail-", 5, TP_NOTICE);
 			}
 		}
+		break;
+	case TP_VERSION:
+		if (!(o & TP_QUERY))
+			break;
+		tp_senddata(fd, Version, strlen(Version), TP_NOTICE);
 		break;
 	default:
 		fprintf(stderr, "T.f was %04x\n", ntohs(T.f));
