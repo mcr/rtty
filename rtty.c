@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.22 2002-06-28 19:08:09 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.23 2002-06-30 20:18:13 vixie Exp $";
 #endif
 
 /*
@@ -48,7 +48,7 @@ static char RCSid[] = "$Id: rtty.c,v 1.22 2002-06-28 19:08:09 vixie Exp $";
 #define LOCAL_DEBUG 0
 
 #define USAGE_STR \
- 	"[-e c] [-s ServSpec] [-l LoginName] [-7] [-r] [-x DebugLevel] Serv"
+	"[-e c] [-s ServSpec] [-l LoginName] [-7] [-r] [-x DebugLevel] Serv"
 
 #define Tty STDIN_FILENO
 
@@ -70,8 +70,8 @@ static	int		Serv = -1,
 			Ttyios_set = 0,
 			SevenBit = 0,
 			Restricted = 0,
- 			highest_fd = -1,
- 			 EscChar = '~';
+			highest_fd = -1,
+			EscChar = '~';
 
 static	struct termios	Ttyios, Ttyios_orig;
 static	fd_set		fds;
@@ -83,9 +83,9 @@ static	void		main_loop(void),
 			serv_input(int),
 			server_replied(char *, int),
 			server_died(void),
- 			quit(int),
- 			restricted_help(void),
- 			unrestricted_help(void);
+			quit(int),
+			restricted_help(void),
+			unrestricted_help(void);
 
 #ifdef DEBUG
 int Debug = 0;
@@ -108,19 +108,20 @@ main(int argc, char *argv[]) {
 	if ((TtyName = ttyname(STDIN_FILENO)) == NULL)
 		TtyName = "/dev/null";
 
- 	while ((ch = getopt(argc, argv, "e:s:x:l:7r")) != -1) {
+	while ((ch = getopt(argc, argv, "e:s:x:l:7r")) != -1) {
 		switch (ch) {
- 		 case 'e':
- 			 EscChar = optarg[0];
- 			 fprintf(stderr, "escape character set to ");
- 			 if(isprint(EscChar))
- 			     fprintf(stderr, "%c\n", EscChar);
- 			 else {
- 			     fprintf(stderr, "0x%02x\n", EscChar);
- 			     USAGE((stderr,
- 				     "must specify a printable character\n"));
- 			 }
- 			 break;
+		case 'e':
+			EscChar = optarg[0];
+			fprintf(stderr, "escape character set to ");
+			if (isprint(EscChar)) {
+				fprintf(stderr, "%c\n", EscChar);
+			} else {
+				fprintf(stderr, "0x%02x\n", EscChar);
+				USAGE((stderr,
+				       "must specify a printable character\n"
+				       ));
+			}
+			break;
 
 		case 's':
 			ServSpec = optarg;
@@ -152,6 +153,7 @@ main(int argc, char *argv[]) {
 
 	if (ServSpec[0] == '/') {
 		struct sockaddr_un n;
+		int cc;
 
 		Serv = socket(PF_UNIX, SOCK_STREAM, 0);
 		ASSERT(Serv>=0, "socket");
@@ -159,8 +161,8 @@ main(int argc, char *argv[]) {
 		n.sun_family = AF_UNIX;
 		(void) strcpy(n.sun_path, ServSpec);
 
-		ASSERT(0<=connect(Serv, (struct sockaddr *)&n, sizeof n),
-		       n.sun_path);
+		cc = connect(Serv, (struct sockaddr *)&n, sizeof n);
+		ASSERT(cc >= 0, n.sun_path);
 		dprintf(stderr, "rtty.main: connected on fd%d\r\n", Serv);
 		fprintf(stderr, "connected\n");
 	} else {
@@ -210,9 +212,9 @@ main(int argc, char *argv[]) {
 	Ttyios_set++;
 
 	fprintf(stderr,
- 		"(use (CR)%c? for minimal help; "
- 		 "also (CR)%cq? and (CR)%cs?)\r\n",
- 		 EscChar, EscChar, EscChar);
+		"(use (CR)%c? for minimal help; "
+		"also (CR)%cq? and (CR)%cs?)\r\n",
+		EscChar, EscChar, EscChar);
 	tp_sendctl(Serv, TP_WHOSON, strlen(WhoAmI), (u_char*)WhoAmI);
 	main_loop();
 	exit(0);
@@ -264,7 +266,7 @@ tty_input(int fd) {
 
 		switch (state) {
 		case base:
- 			if (ch == EscChar) {
+			if (ch == EscChar) {
 				state = tilde;
 				continue;
 			}
@@ -278,10 +280,10 @@ tty_input(int fd) {
 			break;
 		case tilde:
 			state = base;
- 			 if (ch == EscChar) {
- 			     /* duplicated escape sends just one, in buf[] */
- 			     break;
- 			 }
+			if (ch == EscChar) {
+				/* duplicated esc sends just one, in buf[] */
+				break;
+			}
 			switch (ch) {
 			case '.': /* ~. - quitsville */
 				(void) tty_nonblock(fd, 0);
@@ -320,7 +322,7 @@ tty_input(int fd) {
 				continue;
  passthrough:
 			default: /* ~mumble - write; `mumble' is in buf[] */
-				tp_senddata(Serv, (u_char *)EscChar, 1,
+				tp_senddata(Serv, (u_char *)&EscChar, 1,
 					    TP_DATA);
 				if (Log != -1)
 					write(Log, &EscChar, 1);
@@ -429,7 +431,7 @@ query_or_set(int fd, int ch) {
 		if (set) {
 			fputs("\07\r\n", stderr);
 		} else {
-		       	fputs("Tail\r\n", stderr);
+			fputs("Tail\r\n", stderr);
 			tp_sendctl(Serv, TP_TAIL|TP_QUERY, 0, NULL);
 		}
 		break;
@@ -437,7 +439,7 @@ query_or_set(int fd, int ch) {
 		if (set) {
 			fputs("\07\r\n", stderr);
 		} else {
-		       	fputs("Whoson\r\n", stderr);
+			fputs("Whoson\r\n", stderr);
 			tp_sendctl(Serv, TP_WHOSON|TP_QUERY, 0, NULL);
 		}
 		break;
@@ -452,8 +454,7 @@ query_or_set(int fd, int ch) {
 		break;
 	default:
 		if (set)
-			fputs("[all baud parity wordsize]\r\n",
-			      stderr);
+			fputs("[all baud parity wordsize]\r\n", stderr);
 		else
 			fputs("[all Whoson Tail Version]\r\n", stderr);
 		break;
@@ -577,7 +578,7 @@ serv_input(int fd) {
 			if (1 != select(Tty+1, &infd, NULL, NULL, NULL))
 				break;
 			if (1 != read(Tty, c, 1))
-			       	break;
+				break;
 			if (*c == '\r')
 				break;
 		}
@@ -612,36 +613,36 @@ quit(int x) {
 }
 
 char *r_help_strs[] = {
- 	"^Z - suspend program",
- 	"^L - set logging",
- 	"q - query server",
- 	"s - set option",
- 	NULL
+	"^Z - suspend program",
+	"^L - set logging",
+	"q - query server",
+	"s - set option",
+	NULL
 };
 
 char *help_strs[] = {
- 	". - exit program",
- 	"# - send BREAK",
- 	"? - this message",
- 	NULL
+	". - exit program",
+	"# - send BREAK",
+	"? - this message",
+	NULL
 };
 
 static void
 restricted_help(void) {
- 	char **cp;
+	char **cp;
 
- 	fprintf(stderr, "\r\n");
- 	for (cp = r_help_strs; *cp; cp++)
- 		fprintf(stderr, "%c%s\r\n", EscChar, *cp);
+	fprintf(stderr, "\r\n");
+	for (cp = r_help_strs; *cp; cp++)
+		fprintf(stderr, "%c%s\r\n", EscChar, *cp);
 }
 
 static void
 unrestricted_help(void) {
- 	char **cp;
+	char **cp;
 
- 	fprintf(stderr, "\r\n");
- 	fprintf(stderr, "%c%c  - send one escape character (%c)\r\n",
- 		EscChar, EscChar, EscChar);
- 	for (cp = help_strs; *cp; cp++)
- 		fprintf(stderr, "%c%s\r\n", EscChar, *cp);
+	fprintf(stderr, "\r\n");
+	fprintf(stderr, "%c%c  - send one escape character (%c)\r\n",
+		EscChar, EscChar, EscChar);
+	for (cp = help_strs; *cp; cp++)
+		fprintf(stderr, "%c%s\r\n", EscChar, *cp);
 }
