@@ -3,11 +3,10 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.6 1992-11-12 18:25:10 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.7 1993-12-28 00:49:56 vixie Exp $";
 #endif
 
 #include <stdio.h>
-#include <termio.h>
 #include <termios.h>
 #include <errno.h>
 #include <pwd.h>
@@ -15,77 +14,104 @@ static char RCSid[] = "$Id: rtty.c,v 1.6 1992-11-12 18:25:10 vixie Exp $";
 #include <string.h>
 #include <sys/file.h>
 #include <sys/types.h>
+#include <sys/bitypes.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/param.h>
 
+#include "rtty.h"
 #include "ttyprot.h"
 #include "locbrok.h"
-#include "rtty.h"
 
 #define USAGE_STR \
 	"[-7] [-x DebugLevel] Serv"
 
-#define Tty STDIN
+#ifdef USE_UNISTD
+#include <unistd.h>
+#else
+#define	STDIN_FILENO	0
+#define	STDOUT_FILENO	1
+extern	char		*getlogin __P((void)),
+			*ttyname __P((int));
+#endif
+
+#ifdef USE_STDLIB
+#include <stdlib.h>
+#else
+extern	int		optind, opterr,
+			getopt __P((int, char * const *, const char *));
+extern	char		*optarg;
+#endif
+
+#define Tty STDIN_FILENO
 
 ttyprot T;
 
-extern int optind, opterr;
-extern char *optarg;
-extern char Version[];
+extern	int		rconnect(char *host, char *service,
+				 FILE *verbose, FILE *errors, int timeout);
+extern	char		Version[];
 
-char *ProgName, WhoAmI[TP_MAXVAR], Hostname[MAXHOSTNAMELEN];
-char *ServSpec = NULL;		int Serv;
-char LogSpec[MAXPATHLEN];	int Log = -1;
+static	char		*ProgName = "amnesia",
+			WhoAmI[TP_MAXVAR],
+			*ServSpec = NULL,
+			*Login = NULL,
+			*TtyName = NULL,
+			LogSpec[MAXPATHLEN];
+static	int		Serv = -1,
+			Log = -1,
+			Ttyios_set = 0,
+			SevenBit = 0,
+			highest_fd = -1;
+
+static	struct termios	Ttyios, Ttyios_orig;
+static	fd_set		fds;
+
+static	void		main_loop __P((void)),
+			tty_input __P((int)),
+			query_or_set __P((int)),
+			logging __P((void)),
+			serv_input __P((int)),
+			server_replied __P((char *, int)),
+			server_died __P((void)),
+			quit __P((int));
+
+#ifdef DEBUG
 int Debug = 0;
-int SevenBit = 0;
-
-struct termios Ttyios, Ttyios_orig;
-int Ttyios_set = 0;
-
-void
-quit() {
-	fprintf(stderr, "\r\n[rtty exiting]\r\n");
-	if (Ttyios_set) {
-		tcsetattr(Tty, TCSANOW, &Ttyios_orig);
-	}
-	exit(0);
-}
+#endif
 
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int gethostname();
-	extern char *getlogin(), *ttyname();
-	char ch, *tmpU, *tmpT;
+	char ch;
 
 	ProgName = argv[0];
 
-	if (0 > gethostname(Hostname, MAXHOSTNAMELEN)) {
-		strcpy(Hostname, "amnesia");
-	}
-	if (!(tmpU = getlogin())) {
+	if (!(Login = getlogin())) {
 		struct passwd *pw = getpwuid(getuid());
 
 		if (pw) {
-			tmpU = pw->pw_name;
+			Login = pw->pw_name;
 		} else {
-			tmpU = "nobody";
+			Login = "nobody";
 		}
 	}
-	if (!(tmpT = ttyname(STDIN))) {
-		tmpT = "/dev/null";
+	if (!(TtyName = ttyname(STDIN_FILENO))) {
+		TtyName = "/dev/null";
 	}
-	sprintf(WhoAmI, "%s%%%s@%s", tmpU, tmpT, Hostname);
 
-	while ((ch = getopt(argc, argv, "s:x:7")) != EOF) {
+	while ((ch = getopt(argc, argv, "s:x:l:7")) != EOF) {
 		switch (ch) {
 		case 's':
 			ServSpec = optarg;
 			break;
+#ifdef DEBUG
 		case 'x':
 			Debug = atoi(optarg);
+			break;
+#endif
+		case 'l':
+			Login = optarg;
 			break;
 		case '7':
 			SevenBit++;
@@ -96,9 +122,10 @@ main(argc, argv)
 	}
 
 	if (optind != argc-1) {
-		USAGE((stderr, "must specify service"));
+		USAGE((stderr, "must specify service\n"));
 	}
 	ServSpec = argv[optind++];
+	sprintf(WhoAmI, "%s@%s", Login, TtyName);
 
 	if (ServSpec[0] == '/') {
 		struct sockaddr_un n;
@@ -109,9 +136,9 @@ main(argc, argv)
 		n.sun_family = AF_UNIX;
 		(void) strcpy(n.sun_path, ServSpec);
 
-		ASSERT(0<=connect(Serv, &n,
-			strlen(n.sun_path) +sizeof n.sun_family),n.sun_path);
-		dprintf(stderr, "rtty.main: connected on fd%d\n", Serv);
+		ASSERT(0<=connect(Serv, (struct sockaddr *)&n, sizeof n),
+		       n.sun_path);
+		dprintf(stderr, "rtty.main: connected on fd%d\r\n", Serv);
 		fprintf(stderr, "connected\n");
 	} else {
 		int loc, len;
@@ -124,9 +151,9 @@ main(argc, argv)
 		else
 			cp = "127.1";
 
-		if ((loc = rconnect(cp, "locbrok")) == -1) {
+		if ((loc = rconnect(cp, "locbrok", NULL,stderr,30)) == -1) {
 			fprintf(stderr, "can't contact location broker\n");
-			quit();
+			quit(0);
 		}
 		lb.lb_port = htons(0);
 		len = min(LB_MAXNAMELEN, strlen(ServSpec));
@@ -136,47 +163,40 @@ main(argc, argv)
 		ASSERT(read(loc, &lb, sizeof lb)==sizeof lb, "read lb");
 		close(loc);
 		lb.lb_port = ntohs(lb.lb_port);
+		dprintf(stderr, "(locbrok: port %d)\n", lb.lb_port);
 		if (!lb.lb_port) {
 			fprintf(stderr, "location broker can't find %s@%s\n",
 				ServSpec, cp);
-			quit();
+			quit(0);
 		}
 		sprintf(buf, "%d", lb.lb_port);
-		Serv = rconnect(cp, buf);
+		Serv = rconnect(cp, buf, NULL,stderr,30);
 		ASSERT(Serv >= 0, "rconnect rtty");
 	}
 
 	{
 		tcgetattr(Tty, &Ttyios);
 		Ttyios_orig = Ttyios;
-		Ttyios_set++;
-		Ttyios.c_cflag |= INITIAL_CFLAG;
-		Ttyios.c_lflag &= INITIAL_LFLAG;
-		Ttyios.c_iflag &= INITIAL_IFLAG;
-		Ttyios.c_oflag &= INITIAL_OFLAG;
-		Ttyios.c_cc[VMIN] = 0;
-		Ttyios.c_cc[VTIME] = 0;
+		prepare_term(&Ttyios);
 		signal(SIGINT, quit);
 		signal(SIGQUIT, quit);
-		tcsetattr(Tty, TCSANOW, &Ttyios);
+		install_ttyios(Tty, &Ttyios);
+		Ttyios_set++;
 	}
 
 	fprintf(stderr,
-		"(use (CR)~? for minimal help; also (CR)~q? and (CR)~s?)\r\n"
-		);
-	tp_sendctl(Serv, TP_WHOSON, strlen(WhoAmI), WhoAmI);
+		"(use (CR)~? for minimal help; also (CR)~q? and (CR)~s?)\r\n");
+	tp_sendctl(Serv, TP_WHOSON, strlen(WhoAmI), (u_char*)WhoAmI);
 	main_loop();
 }
 
-fd_set fds;
-int highest_fd;
-
+static void
 main_loop()
 {
 	FD_ZERO(&fds);
 	FD_SET(Serv, &fds);
-	FD_SET(STDIN, &fds);
-	highest_fd = max(Serv, STDIN);
+	FD_SET(STDIN_FILENO, &fds);
+	highest_fd = max(Serv, STDIN_FILENO);
 
 	for (;;) {
 		fd_set readfds, exceptfds;
@@ -184,19 +204,32 @@ main_loop()
 
 		readfds = fds;
 		exceptfds = fds;
+#if 0
+		dprintf(stderr, "rtty.main_loop: select(%d,%08x)\r\n",
+			highest_fd+1, readfds.fds_bits[0]);
+#endif
 		nfound = select(highest_fd+1, &readfds, NULL,
 				&exceptfds, NULL);
 		if (nfound < 0 && errno == EINTR)
 			continue;
 		ASSERT(0<=nfound, "select");
+#if 0
+		dprintf(stderr, "ttysrv.main_loop: select->%d\r\n", nfound);
+#endif
 		for (fd = 0; fd <= highest_fd; fd++) {
 			if (FD_ISSET(fd, &exceptfds)) {
+				dprintf(stderr,
+					"rtty.main_loop: fd%d exceptional\r\n",
+					fd);
 				if (fd == Serv) {
 					server_died();
 				}
 			}
 			if (FD_ISSET(fd, &readfds)) {
-				if (fd == STDIN) {
+				dprintf(stderr,
+					"rtty.main_loop: fd%d readable\r\n",
+					fd);
+				if (fd == STDIN_FILENO) {
 					tty_input(fd);
 				} else if (fd == Serv) {
 					serv_input(fd);
@@ -206,10 +239,12 @@ main_loop()
 	}
 }
 
+static void
 tty_input(fd) {
 	unsigned char buf[1];
 	static enum {base, need_cr, tilde} state = base;
 
+	fcntl(Tty, F_SETFL, fcntl(Tty, F_GETFL, 0)|O_NONBLOCK);
 	while (1 == read(fd, buf, 1)) {
 		register unsigned char ch = buf[0];
 
@@ -244,7 +279,7 @@ tty_input(fd) {
 			case '~': /* ~~ - write one ~, which is in buf[] */
 				break;
 			case '.': /* ~. - quitsville */
-				quit();
+				quit(0);
 				/* FALLTHROUGH */
 			case 'L'-'@': /* ~^L - start logging */
 				tcsetattr(Tty, TCSANOW, &Ttyios_orig);
@@ -268,7 +303,7 @@ tty_input(fd) {
 				fprintf(stderr, HELP_STR);
 				continue;
 			default: /* ~mumble - write; `mumble' is in buf[] */
-				tp_senddata(Serv, (unsigned char *)"~", 1,
+				tp_senddata(Serv, (u_char *)"~", 1,
 					    TP_DATA);
 				if (Log != -1) {
 					write(Log, "~", 1);
@@ -284,10 +319,12 @@ tty_input(fd) {
 			write(Log, buf, 1);
 		}
 	}
+	fcntl(Tty, F_SETFL, fcntl(Tty, F_GETFL, 0)&~O_NONBLOCK);
 }
 
+static void
 query_or_set(ch)
-	char ch;
+	int ch;
 {
 	char vmin = Ttyios.c_cc[VMIN];
 	char buf[64];
@@ -395,6 +432,7 @@ query_or_set(ch)
 	tcsetattr(Tty, TCSANOW, &Ttyios);
 }
 
+static void
 logging() {
 	if (Log == -1) {
 		printf("\r\nLog file is: "); fflush(stdout);
@@ -403,7 +441,7 @@ logging() {
 			LogSpec[strlen(LogSpec)-1] = '\0';
 		}
 		if (LogSpec[0]) {
-			Log = open(LogSpec, O_CREAT|O_APPEND|O_WRONLY, 0644);
+			Log = open(LogSpec, O_CREAT|O_APPEND|O_WRONLY, 0640);
 			if (Log == -1) {
 				perror(LogSpec);
 			}
@@ -418,10 +456,12 @@ logging() {
 	}
 }
 
+static void
 serv_input(fd) {
 	register int nchars;
 	register int i;
 	register unsigned int f, o, t;
+	char passwd[TP_MAXVAR], s[3], *c, *crypt();
 
 	if (0 >= (nchars = read(fd, &T, TP_FIXED))) {
 		fprintf(stderr, "serv_input: read(%d) returns %d\n",
@@ -450,15 +490,15 @@ serv_input(fd) {
 		}
 		switch (t) {
 		case TP_DATA:
-			write(STDOUT, T.c, nchars);
+			write(STDOUT_FILENO, T.c, nchars);
 			if (Log != -1) {
 				write(Log, T.c, nchars);
 			}
 			break;
 		case TP_NOTICE:
-			write(STDOUT, "[", 1);
-			write(STDOUT, T.c, nchars);
-			write(STDOUT, "]\r\n", 3);
+			write(STDOUT_FILENO, "[", 1);
+			write(STDOUT_FILENO, T.c, nchars);
+			write(STDOUT_FILENO, "]\r\n", 3);
 			if (Log != -1) {
 				write(Log, "[", 1);
 				write(Log, T.c, nchars);
@@ -494,9 +534,41 @@ serv_input(fd) {
 			server_replied("wordsize change", i);
 		}
 		break;
+	case TP_LOGIN:
+		if (!(o & TP_QUERY)) {
+			break;
+		}
+		tp_sendctl(Serv, TP_LOGIN, strlen(Login), (u_char*)Login);
+		break;
+	case TP_PASSWD:
+		if (!(o & TP_QUERY)) {
+			break;
+		}
+		fputs("Password:", stderr); fflush(stderr);
+		for (c = passwd;  c < &passwd[sizeof passwd];  c++) {
+			fd_set infd;
+
+			FD_ZERO(&infd);
+			FD_SET(Tty, &infd);
+			if (1 != select(Tty+1, &infd, NULL, NULL, NULL))
+				break;
+			if (1 != read(Tty, c, 1))
+			       	break;
+			if (*c == '\r')
+				break;
+		}
+		*c = '\0';
+		fputs("\r\n", stderr); fflush(stderr);
+		s[0] = 0xff & (i>>8);
+		s[1] = 0xff & i;
+		s[2] = '\0';
+		c = crypt(passwd, s);
+		tp_sendctl(Serv, TP_PASSWD, strlen(c), (u_char*)c);
+		break;
 	}
 }
 
+static void
 server_replied(msg, i)
 	char *msg;
 	int i;
@@ -506,7 +578,17 @@ server_replied(msg, i)
 		i ?"accepted" :"rejected");
 }
 
+static void
 server_died() {
 	fprintf(stderr, "\r\n[server disconnect]\r\n");
-	quit();
+	quit(0);
+}
+
+static void
+quit(x) {
+	fprintf(stderr, "\r\n[rtty exiting]\r\n");
+	if (Ttyios_set) {
+		tcsetattr(Tty, TCSANOW, &Ttyios_orig);
+	}
+	exit(0);
 }

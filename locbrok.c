@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.2 1992-09-10 23:30:52 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.3 1993-12-28 00:49:56 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -44,7 +44,7 @@ main(argc, argv)
 	struct servent *serv;
 
 	ProgName = argv[0];
-	while ((ch = getopt(argc, argv, "s:x:7")) != EOF) {
+	while ((ch = getopt(argc, argv, "s:x:")) != EOF) {
 		switch (ch) {
 		case 's':
 			Service = optarg;
@@ -62,7 +62,7 @@ main(argc, argv)
 		;
         } else if (NULL != (serv = getservbyname(Service, "tcp"))) {
 		/* found the service name; we're ok */
-		Port = serv->s_port;
+		Port = ntohs(serv->s_port);
         } else {
 		/* nothing worked; use default */
 		Port = LB_SERVPORT;
@@ -83,8 +83,8 @@ server() {
 
 	name.sin_family = AF_INET;
 	name.sin_addr.s_addr = INADDR_ANY;
-	name.sin_port = Port;
-	ASSERT(bind(serv, &name, sizeof name)>=0, "bind")
+	name.sin_port = htons(Port);
+	ASSERT(bind(serv, (struct sockaddr *)&name, sizeof name)>=0, "bind")
 
 	FD_ZERO(&Clients);
 	MaxFD = serv;
@@ -106,20 +106,18 @@ server() {
 				continue;
 			if (fd == serv) {
 				int namesize = sizeof name;
-				int a, b, c, d, local, cl;
+				int addr, local, cl;
 
-				ASSERT((cl=accept(serv, &name, &namesize))>=0,
+				ASSERT((cl=accept(serv,
+						  (struct sockaddr *)&name,
+						  &namesize))>=0,
 				       "accept")
-				a = name.sin_addr.S_un.S_un_b.s_b1;
-				b = name.sin_addr.S_un.S_un_b.s_b2;
-				c = name.sin_addr.S_un.S_un_b.s_b3;
-				d = name.sin_addr.S_un.S_un_b.s_b4;
-				local = (	(!a && !b && !c && !d)
-					 ||	(a==127 && !b && !c && d==1)
-					 );
+				addr = ntohl(name.sin_addr.s_addr);
+				local = (addr == 0x00000000) ||
+					(addr == 0x7f000001);
 				fprintf(stderr,
-					"accept from %d.%d.%d.%d (%slocal)\n",
-					a, b, c, d, local?"":"not ");
+					"accept from %08x (%slocal)\n",
+					addr, local?"":"not ");
 				FD_SET(cl, &Clients);
 				if (cl > MaxFD)
 					MaxFD = cl;

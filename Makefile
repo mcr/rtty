@@ -1,16 +1,19 @@
-# $Id: Makefile,v 1.5 1992-11-12 18:24:44 vixie Exp $
+# $Id: Makefile,v 1.6 1993-12-28 00:49:56 vixie Exp $
 
-VERSION = 2.5
+VERSION = 3.0.dev
 
 VPATH = ../src
 
 DESTROOT =
-DESTPATH = $(DESTROOT)/rtty
+DESTPATH = $(DESTROOT)/usr/local/rtty
 DESTBIN = $(DESTPATH)/bin
 
-CC = gcc
+CC = cc
 CDEBUG = -O -g
-CFLAGS = $(CDEBUG)
+CDEFS = -DDEBUG
+CFLAGS = $(CDEBUG) $(CDEFS) -I/usr/local/include
+LIBS = -lresolv
+# -l44bsd
 
 BINARY = ttysrv rtty locbrok
 SCRIPT = Startup console startsrv agelogs agelog
@@ -20,11 +23,15 @@ all: $(ALL)
 
 clean:; rm -rf $(ALL) *.o *.BAK *.CKP *~
 
-kit:; shar -o ../kit README Makefile *.c *.h *.sh
+kit:; cshar -o ../kit README Makefile *.c *.h *.sh
 
 bin.tar:; tar cf bin.tar $(ALL)
 
 install: $(ALL) Makefile
+	-set -x; test -d $(DESTPATH) || mkdir $(DESTPATH)
+	-set +e -x; for x in bin dev sock log pid opt; do \
+		test -d $(DESTPATH)/$$x || mkdir $(DESTPATH)/$$x; \
+	done
 	set -x; for x in $(BINARY); do \
 		install -c -m 111 $$x $(DESTBIN)/$$x; \
 	done
@@ -33,13 +40,13 @@ install: $(ALL) Makefile
 	done
 
 ttysrv: ttysrv.o ttyprot.o connutil.o version.o
-	$(CC) -o ttysrv ttysrv.o ttyprot.o connutil.o version.o
+	$(CC) -o ttysrv ttysrv.o ttyprot.o connutil.o version.o $(LIBS)
 
 rtty: rtty.o ttyprot.o connutil.o version.o
-	$(CC) -o rtty rtty.o ttyprot.o connutil.o version.o
+	$(CC) -o rtty rtty.o ttyprot.o connutil.o version.o $(LIBS)
 
 locbrok: locbrok.o version.o
-	$(CC) -o locbrok locbrok.o version.o
+	$(CC) -o locbrok locbrok.o version.o $(LIBS)
 
 console: console.sh Makefile
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
@@ -73,6 +80,7 @@ connutil.o: connutil.c rtty.h
 version.o: version.c
 
 version.c: Makefile
+	rm -f version.c
 	( \
 	  echo "#ifndef LINT"; \
 	  echo "char Version[] ="; \

@@ -3,7 +3,7 @@
 # (this is just a local copy to make sure it's available; master source for
 # this is elsewhere)
 #
-# $Id: agelog.sh,v 1.1 1992-01-02 02:04:18 vixie Exp $
+# $Id: agelog.sh,v 1.2 1993-12-28 00:49:56 vixie Exp $
 #
 # agelog -- age log files, by Dave Lennert as told to Bob Desinger and
 #           James Brister

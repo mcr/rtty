@@ -1,7 +1,7 @@
 /* locbrok.h - defs for location broker
  * vix 13sep91 [written]
  *
- * $Id: locbrok.h,v 1.1 1992-01-02 02:04:18 vixie Exp $
+ * $Id: locbrok.h,v 1.2 1993-12-28 00:49:56 vixie Exp $
  */
 
 #define	LB_SERVNAME	"locbrok"

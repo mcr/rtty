@@ -1,6 +1,20 @@
 rtty V2.5 -- multiuser "tip"/"cu" replacement with logging
 Paul Vixie <vixie@pa.dec.com> -- 1-January-1992 [V2.0 released]
-$Id: README,v 1.4 1992-11-12 18:25:21 vixie Exp $
+Paul Vixie <paul@vix.com> -- 27-December-1993 [V3.0 released]
+$Id: README,v 1.5 1993-12-28 00:49:56 vixie Exp $
+
+3.0 Release Notes (27-Devember-1993)
+
+I've ported it to BSD/386.  This led me to make some major changes to the
+way system routines were declared; the result also works fine on Ultrix 4.2
+and should work OK on any modern system, especially POSIX 1003.1 compatible
+systems.  I cleaned up the IP/TCP transport in case anyone wants to try it;
+in particular there is now a challenge/response for passwords (this used to be
+"wide open" which is why I always discouraged its use before.)
+
+There are some things on my to-do list that I'd like someone else to work on:
+   ->	public/private challenge/response, or kerberos, or both
+   ->	man pages
 
 2.5 Release Notes (12-Nov-92)
 
@@ -172,4 +186,4 @@ code will explain it in more detail.
 Have fun.  Drop me a note if you find this useful.  Definitely drop me
 a note if you find a bug or add a feature.
 
-Paul Vixie <vixie@pa.dec.com>
+Paul Vixie <paul@vix.com>

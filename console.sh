@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# $Id: console.sh,v 1.2 1992-06-23 16:27:18 vixie Exp $
+# $Id: console.sh,v 1.3 1993-12-28 00:49:56 vixie Exp $
 
 default_options=''
 
