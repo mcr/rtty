@@ -1,7 +1,7 @@
 /* ttysrv - serve a tty to stdin/stdout, a named pipe, or a network socket
  * vix 28may91 [written]
  *
- * $Id: ttysrv.c,v 1.4 1992-07-06 18:42:55 vixie Exp $
+ * $Id: ttysrv.c,v 1.5 1992-09-10 23:24:13 vixie Exp $
  */
 
 #include <stdio.h>
@@ -225,7 +225,7 @@ main(argc, argv)
 	}
 
 	WhosOn = (struct whoson **) calloc(getdtablesize(),
-					  sizeof(struct whoson **));
+					   sizeof(struct whoson **));
 
 	main_loop();
 }
@@ -308,15 +308,23 @@ tty_input(fd, aggregate) {
 			LogDirty = TRUE;
 		}
 	}
-	for (fd = 0;  fd <= highest_fd;  fd++) {
-		int x;
+	broadcast(buf, nchars, TP_DATA);
+}
 
+broadcast(buf, nchars, typ)
+	unsigned char *buf;
+	int nchars;
+	unsigned int typ;
+{
+	register int fd, x;
+
+	for (fd = 0;  fd <= highest_fd;  fd++) {
 		if (!FD_ISSET(fd, &Clients)) {
 			continue;
 		}
 
 		Sigpiped = 0;
-		x = tp_senddata(fd, buf, nchars);
+		x = tp_senddata(fd, buf, nchars, typ);
 		dprintf(stderr, "ttysrv.tty_input: %d bytes written on fd%d\n",
 			x, fd);
 		if (Sigpiped) {
@@ -396,7 +404,7 @@ client_input(fd) {
 	case TP_BREAK:
 		dprintf(stderr, "ttysrv.client_input: sending break\n");
 		tcsendbreak(Tty, 0);
-		tp_senddata(fd, "[BREAK]", 7);
+		tp_senddata(fd, "BREAK", 5, TP_NOTICE);
 		dprintf(stderr, "ttysrv.client_input: done sending break\n");
 		break;
 	case TP_BAUD:
@@ -466,10 +474,10 @@ client_input(fd) {
 				if (!who)
 					continue;
 				idle = Now - who->lastInput;
-				sprintf(data, "[%s (idle %d sec%s)]\r\n",
+				sprintf(data, "%s (idle %d sec%s)",
 					who->who ?who->who :"undeclared",
 					idle, (idle==1) ?"" :"s");
-				tp_senddata(fd, data, strlen(data));
+				tp_senddata(fd, data, strlen(data), TP_NOTICE);
 			}
 			break;
 		}
@@ -491,6 +499,12 @@ client_input(fd) {
 			strncpy(WhosOn[fd]->who, T.c, i);
 			WhosOn[fd]->who[i] = '\0';
 		}
+		{ /*local*/
+			char buf[TP_MAXVAR];
+
+			sprintf(buf, "%-*.*s connected\07", i, i, T.c);
+			broadcast(buf, strlen(buf), TP_NOTICE);
+		}
 		break;
 	case TP_TAIL:
 		if (!(o & TP_QUERY))
@@ -500,7 +514,8 @@ client_input(fd) {
 		fflush(LogF);
 		LogDirty = FALSE;
 		if (0 > fseek(LogF, -1024, SEEK_END))
-			break;
+			if (0 > fseek(LogF, 0, SEEK_SET))
+				break;
 		{ /*local*/
 			char buf[TP_MAXVAR];
 			int len, something = FALSE;
@@ -508,13 +523,13 @@ client_input(fd) {
 			while (0 < (len = fread(buf, sizeof(char), sizeof buf,
 						LogF))) {
 				if (!something) {
-					tp_senddata(fd, "===\r\n", 5);
+					tp_senddata(fd, "tail+", 5, TP_NOTICE);
 					something = TRUE;
 				}
-				tp_senddata(fd, buf, len);
+				tp_senddata(fd, buf, len, TP_DATA);
 			}
 			if (something) {
-				tp_senddata(fd, "===\r\n", 5);
+				tp_senddata(fd, "tail-", 5, TP_NOTICE);
 			}
 		}
 		break;
@@ -530,7 +545,12 @@ close_client(fd) {
 	FD_CLR(fd, &Clients);
 	if (WhosOn[fd]) {
 		if (WhosOn[fd]->who) {
+			char buf[TP_MAXVAR];
+
+			sprintf(buf, "%s disconnected\07", WhosOn[fd]->who);
+			broadcast(buf, strlen(buf), TP_NOTICE);
 			free((char *) WhosOn[fd]->who);
+			WhosOn[fd]->who = (char *) NULL;
 		}
 		free((char *) WhosOn[fd]);
 		WhosOn[fd] = (struct whoson *) NULL;
@@ -620,4 +640,3 @@ set_wordsize() {
 	Ttyios.c_cflag &= ~CSIZE;
 	Ttyios.c_cflag |= SysWordsize;
 }
-
