@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.8 1994-04-11 20:36:00 vixie Exp $
+# $Id: Makefile,v 1.9 1994-05-16 06:36:09 vixie Exp $
 
-VERSION = 3.0.dev
+VERSION = 3.1.dev
 
 VPATH = ../src
 
@@ -13,12 +13,12 @@ CDEBUG = -O -g
 # use -U to undefine, -D to define
 #	WANT_TCP	insecure network transparency
 #	NEED_BITYPES_H	if you aren't on BSD/386 1.1, BSD 4.4, or SGI IRIX5
-CDEFS = -DDEBUG -UWANT_TCPIP -DNEED_BITYPES_H
+CDEFS = -DDEBUG -UWANT_TCPIP -UNEED_BITYPES_H
 CFLAGS = $(CDEBUG) $(CDEFS) -I/usr/local/include
 LIBS = 
-#(if WANT_TCPIP defined)
+#(if WANT_TCPIP defined and this isn't in your libc)
 # -lresolv
-#(if the resolver needs it)
+#(if the resolver needs it, which BIND>=4.9's will on BSD>=4.4 systems)
 # -l44bsd
 
 BINARY = ttysrv rtty locbrok
@@ -45,14 +45,14 @@ install: $(ALL) Makefile
 		install -c -m 555 $$x $(DESTBIN)/$$x; \
 	done
 
-ttysrv: ttysrv.o ttyprot.o connutil.o version.o
-	$(CC) -o ttysrv ttysrv.o ttyprot.o connutil.o version.o $(LIBS)
+ttysrv: ttysrv.o ttyprot.o connutil.o misc.o version.o
+	$(CC) -o ttysrv ttysrv.o ttyprot.o connutil.o misc.o version.o $(LIBS)
 
-rtty: rtty.o ttyprot.o connutil.o version.o
-	$(CC) -o rtty rtty.o ttyprot.o connutil.o version.o $(LIBS)
+rtty: rtty.o ttyprot.o connutil.o misc.o version.o
+	$(CC) -o rtty rtty.o ttyprot.o connutil.o misc.o version.o $(LIBS)
 
-locbrok: locbrok.o version.o
-	$(CC) -o locbrok locbrok.o version.o $(LIBS)
+locbrok: locbrok.o misc.o version.o
+	$(CC) -o locbrok locbrok.o misc.o version.o $(LIBS)
 
 console: console.sh Makefile
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
@@ -83,6 +83,7 @@ rtty.o: rtty.c ttyprot.h rtty.h
 ttyprot.o: ttyprot.c ttyprot.h rtty.h
 locbrok.o: locbrok.c locbrok.h rtty.h
 connutil.o: connutil.c rtty.h
+misc.o: misc.c rtty.h ttyprot.h
 version.o: version.c
 
 version.c: Makefile

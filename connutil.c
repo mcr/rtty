@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: connutil.c,v 1.4 1993-12-28 01:15:10 vixie Exp $";
+static char RCSid[] = "$Id: connutil.c,v 1.5 1994-05-16 06:36:09 vixie Exp $";
 #endif
 
 #ifdef WANT_TCPIP
@@ -90,6 +90,7 @@ rconnect(host, service, verbose, errors, timeout)
 	}
 
 	n.sin_family = AF_INET;
+	n.sin_len = sizeof(struct sockaddr_in);
 	n.sin_port = port;
 
 	if (inet_aton(host, &n.sin_addr)) {

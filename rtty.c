@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.10 1994-04-11 20:36:00 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.11 1994-05-16 06:36:09 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -220,17 +220,21 @@ main_loop()
 #endif
 		for (fd = 0; fd <= highest_fd; fd++) {
 			if (FD_ISSET(fd, &exceptfds)) {
+#if 0
 				dprintf(stderr,
 					"rtty.main_loop: fd%d exceptional\r\n",
 					fd);
+#endif
 				if (fd == Serv) {
 					server_died();
 				}
 			}
 			if (FD_ISSET(fd, &readfds)) {
+#if 0
 				dprintf(stderr,
 					"rtty.main_loop: fd%d readable\r\n",
 					fd);
+#endif
 				if (fd == STDIN_FILENO) {
 					tty_input(fd);
 				} else if (fd == Serv) {
@@ -246,7 +250,9 @@ tty_input(fd) {
 	unsigned char buf[1];
 	static enum {base, need_cr, tilde} state = base;
 
+#if 0
 	fcntl(Tty, F_SETFL, fcntl(Tty, F_GETFL, 0)|O_NONBLOCK);
+#endif
 	while (1 == read(fd, buf, 1)) {
 		register unsigned char ch = buf[0];
 
@@ -285,14 +291,14 @@ tty_input(fd) {
 				quit(0);
 				/* FALLTHROUGH */
 			case 'L'-'@': /* ~^L - start logging */
-				tcsetattr(Tty, TCSANOW, &Ttyios_orig);
+				install_ttyios(Tty, &Ttyios_orig);
 				logging();
-				tcsetattr(Tty, TCSANOW, &Ttyios);
+				install_ttyios(Tty, &Ttyios);
 				continue;
 			case 'Z'-'@': /* ~^Z - suspend yourself */
-				tcsetattr(Tty, TCSANOW, &Ttyios_orig);
+				install_ttyios(Tty, &Ttyios_orig);
 				kill(getpid(), SIGTSTP);
-				tcsetattr(Tty, TCSANOW, &Ttyios);
+				install_ttyios(Tty, &Ttyios);
 				continue;
 			case 'q': /* ~q - query server */
 				/*FALLTHROUGH*/
@@ -322,117 +328,136 @@ tty_input(fd) {
 			write(Log, buf, 1);
 		}
 	}
+#if 0
 	fcntl(Tty, F_SETFL, fcntl(Tty, F_GETFL, 0)&~O_NONBLOCK);
+#endif
 }
 
 static void
 query_or_set(ch)
 	int ch;
 {
-	char vmin = Ttyios.c_cc[VMIN];
+	cc_t vmin;
 	char buf[64];
-	int set;
-	int new;
+	int set, new;
 
-	if (ch == 'q')
+	switch (ch) {
+	case 'q':
 		set = 0;
-	else if (ch == 's')
+		break;
+	case 's':
 		set = 1;
-	else
+		break;
+	default:
+		fputc('G'-'@', stderr);
 		return;
+	}
 
 	fputs(set ?"~set " :"~query ", stderr);
+	vmin = Ttyios.c_cc[VMIN];
 	Ttyios.c_cc[VMIN] = 1;
-	tcsetattr(Tty, TCSANOW, &Ttyios);
-	if (1 == read(Tty, buf, 1)) {
-		switch (buf[0]) {
-		case '\n':
-		case '\r':
-		case 'a':
-			fputs("(show all)\r\n", stderr);
-			tp_sendctl(Serv, TP_BAUD|TP_QUERY, 0, NULL);
-			tp_sendctl(Serv, TP_PARITY|TP_QUERY, 0, NULL);
-			tp_sendctl(Serv, TP_WORDSIZE|TP_QUERY, 0, NULL);
-			break;
-		case 'b':
-			if (!set) {
-				fputs("\07\r\n", stderr);
-			} else {
-				fputs("baud ", stderr);
-				tcsetattr(Tty, TCSANOW, &Ttyios_orig);
-				fgets(buf, sizeof buf, stdin);
-				if (buf[strlen(buf)-1] == '\n') {
-					buf[strlen(buf)-1] = '\0';
-				}
-				if (!(new = atoi(buf))) {
-					break;
-				}
-				tp_sendctl(Serv, TP_BAUD, new, NULL);
-			}
-			break;
-		case 'p':
-			if (!set) {
-				fputs("\07\r\n", stderr);
-			} else {
-				fputs("parity ", stderr);
-				tcsetattr(Tty, TCSANOW, &Ttyios_orig);
-				fgets(buf, sizeof buf, stdin);
-				if (buf[strlen(buf)-1] == '\n') {
-					buf[strlen(buf)-1] = '\0';
-				}
-				tp_sendctl(Serv, TP_PARITY, strlen(buf),
-					   (unsigned char *)buf);
-			}
-			break;
-		case 'w':
-			if (!set) {
-				fputs("\07\r\n", stderr);
-			} else {
-				fputs("wordsize ", stderr);
-				tcsetattr(Tty, TCSANOW, &Ttyios_orig);
-				fgets(buf, sizeof buf, stdin);
-				if (!(new = atoi(buf))) {
-					break;
-				}
-				tp_sendctl(Serv, TP_WORDSIZE, new, NULL);
-			}
-			break;
-		case 'T':
-			if (set) {
-				fputs("\07\r\n", stderr);
-			} else {
-			       	fputs("Tail\r\n", stderr);
-				tp_sendctl(Serv, TP_TAIL|TP_QUERY, 0, NULL);
-			}
-			break;
-		case 'W':
-			if (set) {
-				fputs("\07\r\n", stderr);
-			} else {
-			       	fputs("Whoson\r\n", stderr);
-				tp_sendctl(Serv, TP_WHOSON|TP_QUERY, 0, NULL);
-			}
-			break;
-		case 'V':
-			if (set) {
-				fputs("\07\r\n", stderr);
-			} else {
-				fputs("Version\r\n", stderr);
-				tp_sendctl(Serv, TP_VERSION|TP_QUERY, 0, NULL);
-				fprintf(stderr, "[%s (client)]\r\n", Version);
-			}
-			break;
-		default:
-			if (set)
-				fputs("[all baud parity wordsize]\r\n",
-				      stderr);
-			else
-				fputs("[all Whoson Tail Version]\r\n", stderr);
-			break;
-		}
+	install_ttyios(Tty, &Ttyios);
+
+	switch (read(Tty, buf, 1)) {
+	case -1:
+		perror("read");
+		goto done;
+	case 0:
+		fprintf(stderr, "!read");
+		fflush(stderr);
+		goto done;
+	default:
+		break;
 	}
+
+	switch (buf[0]) {
+	case '\n':
+	case '\r':
+	case 'a':
+		fputs("(show all)\r\n", stderr);
+		tp_sendctl(Serv, TP_BAUD|TP_QUERY, 0, NULL);
+		tp_sendctl(Serv, TP_PARITY|TP_QUERY, 0, NULL);
+		tp_sendctl(Serv, TP_WORDSIZE|TP_QUERY, 0, NULL);
+		break;
+	case 'b':
+		if (!set) {
+			fputs("\07\r\n", stderr);
+		} else {
+			fputs("baud ", stderr);
+			install_ttyios(Tty, &Ttyios_orig);
+			fgets(buf, sizeof buf, stdin);
+			if (buf[strlen(buf)-1] == '\n') {
+				buf[strlen(buf)-1] = '\0';
+			}
+			if (!(new = atoi(buf))) {
+				break;
+			}
+			tp_sendctl(Serv, TP_BAUD, new, NULL);
+		}
+		break;
+	case 'p':
+		if (!set) {
+			fputs("\07\r\n", stderr);
+		} else {
+			fputs("parity ", stderr);
+			install_ttyios(Tty, &Ttyios_orig);
+			fgets(buf, sizeof buf, stdin);
+			if (buf[strlen(buf)-1] == '\n') {
+				buf[strlen(buf)-1] = '\0';
+			}
+			tp_sendctl(Serv, TP_PARITY, strlen(buf),
+				   (unsigned char *)buf);
+		}
+		break;
+	case 'w':
+		if (!set) {
+			fputs("\07\r\n", stderr);
+		} else {
+			fputs("wordsize ", stderr);
+			install_ttyios(Tty, &Ttyios_orig);
+			fgets(buf, sizeof buf, stdin);
+			if (!(new = atoi(buf))) {
+				break;
+			}
+			tp_sendctl(Serv, TP_WORDSIZE, new, NULL);
+		}
+		break;
+	case 'T':
+		if (set) {
+			fputs("\07\r\n", stderr);
+		} else {
+		       	fputs("Tail\r\n", stderr);
+			tp_sendctl(Serv, TP_TAIL|TP_QUERY, 0, NULL);
+		}
+		break;
+	case 'W':
+		if (set) {
+			fputs("\07\r\n", stderr);
+		} else {
+		       	fputs("Whoson\r\n", stderr);
+			tp_sendctl(Serv, TP_WHOSON|TP_QUERY, 0, NULL);
+		}
+		break;
+	case 'V':
+		if (set) {
+			fputs("\07\r\n", stderr);
+		} else {
+			fputs("Version\r\n", stderr);
+			tp_sendctl(Serv, TP_VERSION|TP_QUERY, 0, NULL);
+			fprintf(stderr, "[%s (client)]\r\n", Version);
+		}
+		break;
+	default:
+		if (set)
+			fputs("[all baud parity wordsize]\r\n",
+			      stderr);
+		else
+			fputs("[all Whoson Tail Version]\r\n", stderr);
+		break;
+	}
+ done:
 	Ttyios.c_cc[VMIN] = vmin;
-	tcsetattr(Tty, TCSANOW, &Ttyios);
+	install_ttyios(Tty, &Ttyios);
 }
 
 static void
@@ -591,7 +616,7 @@ static void
 quit(x) {
 	fprintf(stderr, "\r\n[rtty exiting]\r\n");
 	if (Ttyios_set) {
-		tcsetattr(Tty, TCSANOW, &Ttyios_orig);
+		install_ttyios(Tty, &Ttyios_orig);
 	}
 	exit(0);
 }

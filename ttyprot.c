@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttyprot.c,v 1.6 1994-04-11 20:36:00 vixie Exp $";
+static char RCSid[] = "$Id: ttyprot.c,v 1.7 1994-05-16 06:36:09 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -18,12 +18,6 @@ static char RCSid[] = "$Id: ttyprot.c,v 1.6 1994-04-11 20:36:00 vixie Exp $";
 # include "bitypes.h"
 #endif
 #include "ttyprot.h"
-
-#ifdef USE_STDLIB
-#include <stdlib.h>
-#else
-extern	void		*malloc __P((size_t));
-#endif
 
 #if DEBUG
 extern	int		Debug;
@@ -40,7 +34,7 @@ tp_senddata(fd, buf, len, typ)
 	struct iovec iov[2];
 
 #if DEBUG
-	if (Debug) {
+	if (Debug >= 5) {
 		fprintf(stderr, "tp_senddata(fd=%d, buf=\"", fd);
 		cat_v(stderr, buf, len);
 		fprintf(stderr, "\", len=%d, typ=%d)\r\n", len, typ);
@@ -60,7 +54,7 @@ tp_senddata(fd, buf, len, typ)
 		if (i < 0)
 			break;
 	}
-	return i;
+	return (i);
 }
 
 int
@@ -76,7 +70,7 @@ tp_sendctl(fd, f, i, c)
 	int len = c ?min(strlen((char *)c), TP_MAXVAR) :0;
 
 #if DEBUG
-	if (Debug) {
+	if (Debug >= 5) {
 		fprintf(stderr, "tp_sendctl(fd=%d, f=%04x, i=%d, c=\"",
 			fd, f, i, c);
 		cat_v(stderr, c ?c :(u_char*)"", len);
@@ -93,7 +87,7 @@ tp_sendctl(fd, f, i, c)
 		iov[il].iov_len = len;
 		il++;
 	}
-	return writev(fd, iov, il);
+	return (writev(fd, iov, il));
 }
 
 int
@@ -111,13 +105,13 @@ tp_getdata(fd, tp)
 			perror("read#2");
 		else
 			fputc('\n', stderr);
-		return 0;
+		return (0);
 	}
 #ifdef DEBUG
-	if (Debug) {
+	if (Debug >= 5) {
 		fprintf(stderr, "tp_getdata(fd%d, len%d): got %d bytes",
 			fd, len, nchars);
-		if (Debug > 1) {
+		if (Debug >= 6) {
 			fputs(": \"", stderr);
 			cat_v(stderr, tp->c, nchars);
 			fputs("\"", stderr);
@@ -125,70 +119,5 @@ tp_getdata(fd, tp)
 		fputc('\n', stderr);
 	}
 #endif
-	return nchars;
-}
-
-void
-cat_v(file, buf, nchars)
-	FILE *file;
-	u_char *buf;
-	int nchars;
-{
-	while (nchars-- > 0) {
-		int c = *buf++;
-
-		if (isprint(c)) {
-			fputc(c, file);
-		} else if (iscntrl(c)) {
-			fputc('^', file);
-			fputc('@' + c, file);	/* XXX assumes ASCII */
-		} else {
-			fprintf(file, "\\%03o", c);
-		}
-	}
-}
-
-char *
-strsave(s)
-	char *s;
-{
-	char *x;
-
-	x = malloc(strlen(s) + 1);
-	strcpy(x, s);
-	return x;
-}
-
-int
-install_ttyios(tty, ios)
-	int tty;
-	struct termios *ios;
-{
-#ifdef DEBUG
-	if (Debug) {
-		fprintf(stderr,
-			"install_termios(%d): C=0x%x L=0x%x I=0x%x O=0x%x\n",
-			tty, ios->c_cflag, ios->c_lflag,
-			ios->c_iflag, ios->c_oflag);
-	}
-#endif
-	if (0 > tcsetattr(tty, TCSANOW, ios)) {
-		perror("tcsetattr");
-		return -1;
-	}
-	return 0;
-}
-
-void
-prepare_term(ios)
-	struct termios *ios;
-{
-	ios->c_cflag |= HUPCL|CLOCAL|CREAD|TAUTOFLOW|CS8;
-	ios->c_lflag |= NOFLSH;
-	ios->c_lflag &= ~(ICANON|TOSTOP|ECHO|ECHOE|ECHOK|ECHONL|IEXTEN|ISIG);
-	ios->c_iflag &= ~(IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK|ISTRIP
-			  |INLCR|IGNCR|ICRNL|IXON|IXOFF);
-	ios->c_oflag &= ~OPOST;
-	ios->c_cc[VMIN] = 0;
-	ios->c_cc[VTIME] = 0;
+	return (nchars);
 }

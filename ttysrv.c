@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.10 1994-04-11 20:36:00 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.11 1994-05-16 06:36:09 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -248,7 +248,8 @@ main(argc, argv)
 		ASSERT(RServ>=0, "socket");
 
 		n.sin_family = AF_INET;
-		n.sin_port = 0;
+		n.sin_len = sizeof(struct sockaddr_in);
+		n.sin_port = 0;			/* "any" */
 		n.sin_addr.s_addr = INADDR_ANY;
 		ASSERT(0<=bind(RServ, (struct sockaddr *)&n, sizeof n),
 		       "bind");
@@ -440,7 +441,9 @@ serv_input(fd) {
 
 	dprintf(stderr, "ttysrv.serv_input: accepted fd%d\n", fd);
 
+#if 0
 	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0)|O_NONBLOCK);
+#endif
 	FD_SET(fd, &Clients);
 	if (fd > highest_fd) {
 		highest_fd = fd;
@@ -452,7 +455,7 @@ serv_input(fd) {
 	WhosOn[fd]->lastInput = Now;
 	WhosOn[fd]->auth = NULL;
 	if (sa == (struct sockaddr *) &un) {
-		WhosOn[fd]->host = strsave(Hostname);
+		WhosOn[fd]->host = strdup(Hostname);
 		WhosOn[fd]->type = local;
 		auth_ok(fd);
 	} else if (sa == (struct sockaddr *) &in) {
@@ -461,9 +464,9 @@ serv_input(fd) {
 		hp = gethostbyaddr((char *)&in.sin_addr,
 				   sizeof(in.sin_addr),
 				   in.sin_family);
-		WhosOn[fd]->host = strsave(hp
-					   ?hp->h_name
-					   :inet_ntoa(in.sin_addr));
+		WhosOn[fd]->host = strdup(hp
+					  ? hp->h_name
+					  : inet_ntoa(in.sin_addr));
 		WhosOn[fd]->type = remote;
 		auth_needed(fd);
 	} else {
@@ -642,7 +645,7 @@ client_input(fd) {
 		if (WhosOn[fd]) {
 			if (WhosOn[fd]->who)
 				free(WhosOn[fd]->who);
-			WhosOn[fd]->who = strsave((char *)T.c);
+			WhosOn[fd]->who = strdup((char *)T.c);
 		}
 		{ /*local*/
 			char buf[TP_MAXVAR];
@@ -712,7 +715,7 @@ client_input(fd) {
 			auth_ok(fd);
 		} else {
 			WhosOn[fd]->state = wpasswd;
-			WhosOn[fd]->auth = strsave(pw->pw_passwd);
+			WhosOn[fd]->auth = strdup(pw->pw_passwd);
 			salt = WhosOn[fd]->auth[0]<<8 | WhosOn[fd]->auth[1];
 			tp_sendctl(fd, TP_PASSWD|TP_QUERY, salt, NULL);
 		}
@@ -750,7 +753,9 @@ client_input(fd) {
 }
 
 static void
-close_client(fd) {
+close_client(fd)
+	int fd;
+{
 	dprintf(stderr, "close_client: fd%d\n", fd);
 	close(fd);
 	FD_CLR(fd, &Clients);
@@ -895,7 +900,7 @@ static void
 quit(x) {
 	fprintf(stderr, "\r\nttysrv exiting\r\n");
 	if (Ttyios_set && (Tty != -1)) {
-		tcsetattr(Tty, TCSANOW, &Ttyios_orig);
+		(void) install_ttyios(Tty, &Ttyios_orig);
 	}
 	exit(0);
 }

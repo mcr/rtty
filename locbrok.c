@@ -3,7 +3,11 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.4 1993-12-28 01:15:10 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.5 1994-05-16 06:36:09 vixie Exp $";
+#endif
+
+#ifdef DEBUG
+int Debug = 0;
 #endif
 
 #ifdef WANT_TCPIP
@@ -31,12 +35,27 @@ extern	int		optind, opterr,
 			getopt __P((int, char * const *, const char *));
 extern	char		*optarg;
 
+	/* misc.c */
+#ifndef isnumber
+extern	int		isnumber __P((char *));
+#endif
+
 typedef struct reg_db {
 	char *name;
 	u_short port;
 	u_short client;
 	struct reg_db *next;
 } reg_db;
+
+static	reg_db		*find_byname __P((char *name)),
+			*find_byport __P((u_short port));
+
+static	int		add __P((char *name, u_short port, u_short client));
+
+static	void		server __P((void)),
+			client_input __P((int fd)),
+			rm_byclient __P((u_short client)),
+			print __P((void));
 
 static	char		*ProgName = "amnesia",
 			*Service = LB_SERVNAME;
@@ -50,8 +69,8 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	char ch;
 	struct servent *serv;
+	char ch;
 
 	ProgName = argv[0];
 	while ((ch = getopt(argc, argv, "s:x:")) != EOF) {
@@ -67,7 +86,7 @@ main(argc, argv)
 		}
 	}
 
-	if (0 != (Port = atoi(Service))) {
+	if (isnumber(Service) && (Port = atoi(Service))) {
 		/* numeric service; we're ok */
 		;
         } else if (NULL != (serv = getservbyname(Service, "tcp"))) {
@@ -83,6 +102,7 @@ main(argc, argv)
 	server();
 }
 
+static void
 server() {
 	int serv, on = 1;
 	struct sockaddr_in name;
@@ -92,6 +112,7 @@ server() {
 	setsockopt(serv, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof on);
 
 	name.sin_family = AF_INET;
+	name.sin_len = sizeof(struct sockaddr_in);
 	name.sin_addr.s_addr = INADDR_ANY;
 	name.sin_port = htons(Port);
 	ASSERT(bind(serv, (struct sockaddr *)&name, sizeof name)>=0, "bind")
@@ -99,11 +120,10 @@ server() {
 	FD_ZERO(&Clients);
 	MaxFD = serv;
 	listen(serv, 5);
-	while (TRUE) {
+	for (;;) {
 		fd_set readfds;
 		int nset;
 		register int fd;
-		extern int errno;
 
 		readfds = Clients;
 		FD_SET(serv, &readfds);
@@ -123,8 +143,11 @@ server() {
 						  &namesize))>=0,
 				       "accept")
 				addr = ntohl(name.sin_addr.s_addr);
-				local = (addr == 0x00000000) ||
-					(addr == 0x7f000001);
+				local = (addr == INADDR_ANY) ||
+					((IN_CLASSA(addr) &&
+					  (addr & IN_CLASSA_NET) >>
+					  IN_CLASSA_NSHIFT)
+					 == IN_LOOPBACKNET);
 				fprintf(stderr,
 					"accept from %08x (%slocal)\n",
 					addr, local?"":"not ");
@@ -140,11 +163,13 @@ server() {
 	}
 }
 
-client_input(fd) {
+static void
+client_input(fd)
+	int fd;
+{
 	locbrok	lb;
 	reg_db *db;
 	int keepalive = 0;
-	reg_db *find_byname(), *find_byport();
 
 	if (0 >= read(fd, &lb, sizeof lb)) {
 		fputs("locbrok.client_input: ", stderr);
@@ -186,14 +211,14 @@ client_input(fd) {
 	write(fd, &lb, sizeof lb);
 	if (keepalive)
 		return;
-death:
+ death:
 	close(fd);
 	FD_CLR(fd, &Clients);
 	rm_byclient(fd);
 	print();
 }
 
-reg_db *
+static reg_db *
 find_byname(name)
 	char *name;
 {
@@ -201,11 +226,11 @@ find_byname(name)
 
 	for (db = RegDB;  db;  db = db->next)
 		if (!strcmp(name, db->name))
-			return db;
-	return NULL;
+			return (db);
+	return (NULL);
 }
 
-reg_db *
+static reg_db *
 find_byport(port)
 	u_short port;
 {
@@ -213,11 +238,11 @@ find_byport(port)
 
 	for (db = RegDB;  db;  db = db->next)
 		if (port == db->port)
-			return db;
-	return NULL;
+			return (db);
+	return (NULL);
 }
 
-int
+static int
 add(name, port, client)
 	char *name;
 	u_short port;
@@ -226,7 +251,7 @@ add(name, port, client)
 	reg_db *db;
 
 	if (find_byname(name) || find_byport(port))
-		return -1;
+		return (-1);
 	db = (reg_db *) malloc(sizeof(reg_db));
 	db->name = malloc(strlen(name)+1);
 	strcpy(db->name, name);
@@ -234,9 +259,10 @@ add(name, port, client)
 	db->client = client;
 	db->next = RegDB;
 	RegDB = db;
-	return 0;
+	return (0);
 }
 
+static void
 rm_byclient(client)
 	u_short client;
 {
@@ -261,6 +287,7 @@ rm_byclient(client)
 	}
 }
 
+static void
 print() {
 	reg_db *db;
 
