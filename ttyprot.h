@@ -1,7 +1,7 @@
 /* ttyproto.h - define protocol used by ttysrv and its clients
  * vix 29may91 [written]
  *
- * $Id: ttyprot.h,v 1.9 2001-03-24 21:14:31 vixie Exp $
+ * $Id: ttyprot.h,v 1.10 2002-02-28 02:31:46 vixie Exp $
  */
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -53,3 +53,13 @@ typedef struct ttyprot {
 int tp_senddata(int, const u_char *, int, int);
 int tp_sendctl(int, u_int, u_int, u_char *);
 int tp_getdata(int, ttyprot *);
+
+#if defined(CCTS_OFLOW) && defined(CRTS_IFLOW)
+# define RTTY_RTSCTS (CCTS_OFLOW | CRTS_IFLOW)
+#else
+# if defined(CRTSCTS)
+#  define RTTY_RTSCTS CRTSCTS
+# else
+#  define RTTY_RTSCTS 0
+# endif
+#endif

@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.18 2001-03-25 05:41:17 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.19 2002-02-28 02:31:46 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -66,8 +66,8 @@ struct whoson {
 };
 
 #define MAX_AUTH_ATTEMPTS 3
-#define USAGE_STR "{-o option} [-s LServ|-r RServ] [-l Log]\n\
-	-t Tty [-b Baud] [-p Parity] [-w Wordsize] [-i Pidfile]"
+#define USAGE_STR "[-s LServ|-r RServ] [-l Log]\n\
+	-t Tty [-b Baud] [-p Parity] [-w Wordsize] [-i Pidfile] [-R]"
 
 
 #ifdef DEBUG
@@ -113,7 +113,6 @@ static	struct timeval	TOinput = {0, 3000};	/* 3ms: >1byte @9600baud */
 static	struct timeval	TOflush = {1, 0};	/* 1 second */
 static	struct whoson	**WhosOn;
 
-static	char		*handle_option(char *);
 static	void		main_loop(void),
 			tty_input(int, int),
 			broadcast(u_char *, int, u_int),
@@ -126,6 +125,7 @@ static	void		main_loop(void),
 			close_client(int),
 			set_parity(u_int),
 			set_wordsize(u_int),
+			set_rtscts(int),
 			auth_needed(int),
 			auth_ok(int),
 			lprintf(FILE *, const char *, ...);
@@ -136,20 +136,14 @@ static	int		set_baud(int),
 
 int
 main(int argc, char *argv[]) {
-	int i, ch;
+	int i, ch, want_rtscts = 0;
 	char *msg;
 
 	gethostname(Hostname, sizeof Hostname);
 	ProgName = argv[0];
 
-	while ((ch = getopt(argc, argv, "o:s:r:t:l:b:p:w:x:i:")) != EOF) {
+	while ((ch = getopt(argc, argv, "s:r:t:l:b:p:w:x:i:R")) != EOF) {
 		switch (ch) {
-		case 'o':
-			msg = handle_option(optarg);
-			if (msg) {
-				USAGE((stderr, "%s: bad option (%s): %s\n",
-				       ProgName, optarg, msg));
-			}
 		case 's':
 			LServSpec = optarg;
 			break;
@@ -184,6 +178,9 @@ main(int argc, char *argv[]) {
 		case 'i':
 			PidFile = optarg;
 			break;
+		case 'R':
+			want_rtscts++;
+			break;
 		default:
 			USAGE((stderr, "%s: getopt=%c ?\n", ProgName, ch));
 		}
@@ -201,7 +198,8 @@ main(int argc, char *argv[]) {
 	tcgetattr(Tty, &Ttyios);
 	Ttyios_orig = Ttyios;
 	prepare_term(&Ttyios, 0);
-	set_baud(Baud);
+	(void) set_baud(Baud);
+	set_rtscts(want_rtscts);
 
 	if ((i = find_parity(Parity)) == -1) {
 		USAGE((stderr, "%s: parity %s ?\n", ProgName, Parity));
@@ -843,14 +841,13 @@ set_wordsize(u_int wordsize) {
 	Ttyios.c_cflag |= wordsize;
 }
 
-static char *
-handle_option(char *option) {
-	if (!strcmp("nolocal", option)) {
-		Ttyios.c_cflag &= ~CLOCAL;
+static void
+set_rtscts(int want_rtscts) {
+	if (want_rtscts) {
+		Ttyios.c_cflag |= RTTY_RTSCTS;
 	} else {
-		return "unrecognized";
+		Ttyios.c_cflag &= ~RTTY_RTSCTS;
 	}
-	return (NULL);
 }
 
 static void
