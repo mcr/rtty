@@ -1,7 +1,7 @@
 /* rtty.h - definitions for rtty package
  * vix 01nov91 [written]
  *
- * $Id: rtty.h,v 1.1 1992-01-02 02:04:18 vixie Exp $
+ * $Id: rtty.h,v 1.2 1992-06-23 16:27:18 vixie Exp $
  */
 
 #define ASSERT2(e, m1, m2)	if (!(e)) {int save_errno=errno;\
@@ -22,4 +22,18 @@
 #define STDIN 0
 #define STDOUT 1
 
+#ifndef TAUTOFLOW
+#define TAUTOFLOW 0
+#endif
 
+#define	INITIAL_CFLAG \
+	(HUPCL|CLOCAL|CREAD|TAUTOFLOW)
+
+#define INITIAL_LFLAG \
+	~(ISIG|ICANON|NOFLSH|TOSTOP|ECHO|ECHOE|ECHOK|ECHONL|IEXTEN)
+
+#define INITIAL_IFLAG \
+    ~(IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK|ISTRIP|INLCR|IGNCR|ICRNL|IXON|IXOFF)
+
+#define	INITIAL_OFLAG \
+	~(OPOST)

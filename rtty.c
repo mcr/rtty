@@ -1,7 +1,7 @@
 /* rtty - client of ttysrv
  * vix 28may91 [written]
  *
- * $Id: rtty.c,v 1.1 1992-01-02 02:04:18 vixie Exp $
+ * $Id: rtty.c,v 1.2 1992-06-23 16:27:18 vixie Exp $
  */
 
 #include <stdio.h>
@@ -39,6 +39,7 @@ int SevenBit = 0;
 struct termios Ttyios, Ttyios_orig;
 int Ttyios_set = 0;
 
+void
 quit() {
 	fprintf(stderr, "\r\n[rtty exiting]\r\n");
 	if (Ttyios_set) {
@@ -127,10 +128,10 @@ main(argc, argv)
 		tcgetattr(Tty, &Ttyios);
 		Ttyios_orig = Ttyios;
 		Ttyios_set++;
-		Ttyios.c_cflag = HUPCL|CLOCAL|CREAD;	/* note "=" not "!=" */
-		Ttyios.c_lflag = 0;
-		Ttyios.c_iflag = 0;
-		Ttyios.c_oflag = 0;
+		Ttyios.c_cflag |= INITIAL_CFLAG;
+		Ttyios.c_lflag &= INITIAL_LFLAG;
+		Ttyios.c_iflag &= INITIAL_IFLAG;
+		Ttyios.c_oflag &= INITIAL_OFLAG;
 		Ttyios.c_cc[VMIN] = 0;
 		Ttyios.c_cc[VTIME] = 0;
 		signal(SIGINT, quit);

@@ -1,7 +1,7 @@
 /* ttyproto.h - define protocol used by ttysrv and its clients
  * vix 29may91 [written]
  *
- * $Id: ttyprot.h,v 1.1 1992-01-02 02:04:18 vixie Exp $
+ * $Id: ttyprot.h,v 1.2 1992-06-23 16:27:18 vixie Exp $
  */
 
 #define TP_TYPEMASK	0x00ff
@@ -15,7 +15,7 @@
 #define TP_QUERY	0x0100
 
 #define	TP_FIXED	(sizeof(unsigned short) + sizeof(unsigned short))
-#define	TP_MAXVAR	64
+#define	TP_MAXVAR	468	/* 512 - 40 - TP_FIXED */
 
 typedef struct ttyprot {
 	unsigned short	f;

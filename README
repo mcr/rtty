@@ -1,6 +1,16 @@
-rtty V2.0 -- multiuser "tip"/"cu" replacement with logging
-Paul Vixie <vixie@pa.dec.com> -- 1-January-1991
-$Id: README,v 1.1 1992-01-02 03:06:15 vixie Exp $
+rtty V2.1 -- multiuser "tip"/"cu" replacement with logging
+Paul Vixie <vixie@pa.dec.com> -- 4-June-1992
+Paul Vixie <vixie@pa.dec.com> -- 1-January-1992 [V2.0 released]
+$Id: README,v 1.2 1992-06-23 16:27:18 vixie Exp $
+
+2.1 Release Notes
+
+Andrew Partan helped me understand that my termios code was nonportable,
+and suggested fixes for that and several other embarrassing errors of mine.
+Meanwhile, back at the ranch, I finally found the right dance to make this
+thing efficient enough to stop losing characters at 9600 baud, even when
+multiple clients connect to multiple servers, all with log files running,
+all on a 3 VUP console server.
 
 Introduction
 
@@ -50,7 +60,8 @@ Both client and server support internet-domain sockets (we'll let you
 figure out "how" by reading the sources), there is absolutely no security
 in rtty, and opening up our tty ports to the local internet with no access
 control has seemed like a bad idea (especially since they are the main
-consoles of our Internet gateway computers).
+consoles of our Internet gateway computers).  So we don't use this feature.
+(Win promised to Kerberize this stuff for me but then he got busy.)
 
 Futures
 
@@ -67,26 +78,30 @@ These installation instructions assume that you are creating a console
 server.  If you are using this code for something else, you should read
 all this with several thousand grains of salt.
 
-We put everything in /rtty.  You will probably put it in /usr/local/rtty or
-/usr/local/adm/rtty or /usr/local/lib/rtty.  Once you decide where you want
-this stuff, edit the Makefile and change DESTPATH.  (Probably you should not
-change DESTROOT; it's a knob for "make install" when the compilation server
-and the execution server have different paths to the tree.)  Assuming that
-you put it in /rtty, you will need the following subdirectories:
+We put everything in /rtty since it is extremely small and most of what gets
+put there is symlinks and short config files.  You will probably put it in
+/usr/local/rtty or /usr/local/adm/rtty or /usr/local/lib/rtty.  Once you
+decide where you want this stuff, edit the Makefile and change DESTPATH.
+(Probably you should not change DESTROOT; it's a knob for "make install"
+when the compilation host and the execution host have different paths to the
+tree.)  Assuming that you put it in /rtty, you will need the following
+subdirectories:
 
     /rtty/bin
 	will contain the server, client, and some shell scripts to
 	glue it all together and make it work.  "make install" will
-	populate it but you will need to create it.
+	populate it but you will need to create the directory first.
     /rtty/dev
 	will contain symlinks to entries in /dev.  the names of the
 	symlinks should be meaningful, and the names in /dev probably
 	will not be meaningful.  you might use
-		ln -s /dev/tty15 /rtty/dev/decwrl
+		ln -s /dev/tty15 /rtty/dev/gatekeeper
 	and so on.
     /rtty/log
 	will contain the log files, if you use them.  just create it,
-	the servers will populate it.
+	the servers will populate it.  note that the default behaviour
+	of the "startsrv" script is to use them, so complaints will
+	be issued if you do not create this directory.
     /rtty/pid
 	will contain server pid's, which are used by the various shell
 	scripts that kill or restart the servers or age the log files.
@@ -94,6 +109,23 @@ you put it in /rtty, you will need the following subdirectories:
     /rtty/sock
 	will contain the UNIX-domain sockets for the various servers.
 	just create it and the servers will populate it.
+    /rtty/opt
+	this directory is optional.  if you created it and put in it files
+	of the form $HOST.srv and/or $HOST.cons, then when the server (or
+	"console" client) for that HOST is started, it will use the command
+	line options from this file.  the scripts will look for DEFAULT.srv
+	(and DEFAULT.cons) if there is no host-specific option file.  if
+	there are no option files at all (or no /rtty/opt directory), the
+	compiled-in defaults are used (baud=9600, parity=none, wordsize=8).
+	example 1: our 11/785 has a 1200-baud console, so...
+		% cat > /rtty/opt/wrlvms.srv
+		-b 1200
+		^D
+	example 2: our uVax2 running BSD likes different things in the >>>
+	mode than when /vmunix is running, so...
+		% cat > /rtty/opt/beast.cons
+		-7
+		^D
 
 So OK, you've chosen a DESTPATH, created and populated it, and edited
 the Makefile.  Type "make" and if all goes well, type "make install" and
@@ -114,10 +146,10 @@ command is in most people's $PATH.  We did this:
 	ln -s /rtty/bin/console /usr/local/bin/console
 
 That's all.  Type "rehash" and type "console".  You should get a list of
-the available consoles.  Pick one (say, "decwrl" if you have one) and try
-something like "console decwrl".  If it works, bring up another window and
+the available consoles.  Pick one (say, "gatekeeper" if you have one) and try
+something like "console gatekeeper".  If it works, bring up another window and
 do it again.  You should see the same session in both windows.  Bring up
-yet another window and say something like "tail -f /rtty/log/decwrl".  You
+yet another window and say something like "tail -f /rtty/log/gatekeeper".  You
 should see the session in that window, too.
 
 Other Notes

@@ -1,7 +1,7 @@
 /* ttysrv - serve a tty to stdin/stdout, a named pipe, or a network socket
  * vix 28may91 [written]
  *
- * $Id: ttysrv.c,v 1.2 1992-04-18 04:16:58 vixie Exp $
+ * $Id: ttysrv.c,v 1.3 1992-06-23 16:27:18 vixie Exp $
  */
 
 #include <stdio.h>
@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 
 #include "ttyprot.h"
@@ -31,7 +32,7 @@ char *ProgName;
 char *ServSpec = NULL;	int Serv;
 char *TtySpec = NULL;	int Tty = -1;	struct termios Ttyios, Ttyios_orig;
 int Ttyios_set = 0;
-char *LogSpec = NULL;	FILE *LogF = NULL;
+char *LogSpec = NULL;	FILE *LogF = NULL;	int LogDirty = FALSE;
 int Baud = 9600;	speed_t SysBaud;
 char *Parity = "none";	unsigned int SysParity;
 char ParityBuf[TP_MAXVAR];
@@ -43,28 +44,34 @@ ttyprot T;
 unsigned short Port;
 int LocBrok = -1;
 
+struct timeval TOinput = {0, 250000};	/* 0.25 second */
+struct timeval TOflush = {1, 0};	/* 1 second */
+
 int Sigpiped = 0;
+
+void
 sigpipe() {
 	Sigpiped++;
 }
 
+void
 sighup() {
 	if (LogF) {
 		fclose(LogF);
 		LogF = NULL;
+		LogDirty = FALSE;
 		open_log();
 	}
 }
 
 open_log() {
-	if (LogF = fopen(LogSpec, "a")) {
-		setlinebuf(LogF);
-	} else {
+	if (!(LogF = fopen(LogSpec, "a"))) {
 		perror(LogSpec);
 		fprintf(stderr, "%s: can't open log file\n", ProgName);
 	}
 }
 
+void
 quit() {
 	fprintf(stderr, "\r\nttysrv exiting\r\n");
 	if (Ttyios_set && (Tty != -1)) {
@@ -132,10 +139,10 @@ main(argc, argv)
 		tcgetattr(Tty, &Ttyios);
 		Ttyios_orig = Ttyios;
 		Ttyios_set++;
-		Ttyios.c_cflag = HUPCL|CLOCAL|CREAD;
-		Ttyios.c_lflag = 0;
-		Ttyios.c_iflag = 0;
-		Ttyios.c_oflag = 0;
+		Ttyios.c_cflag |= INITIAL_CFLAG;
+		Ttyios.c_lflag &= INITIAL_LFLAG;
+		Ttyios.c_iflag &= INITIAL_IFLAG;
+		Ttyios.c_oflag &= INITIAL_OFLAG;
 		Ttyios.c_cc[VMIN] = 0;
 		Ttyios.c_cc[VTIME] = 0;
 		set_baud();
@@ -235,10 +242,14 @@ main_loop()
 		FD_SET(Tty, &readfds);
 		dprintf(stderr, "ttysrv.main_loop: select(%d,%08x)\n",
 			highest_fd+1, readfds.fds_bits[0]);
-		nfound = select(highest_fd+1, &readfds, NULL, NULL, NULL);
+		nfound = select(highest_fd+1, &readfds, NULL, NULL,
+				(LogDirty ?&TOflush :NULL));
 		if (nfound < 0 && errno == EINTR)
 			continue;
-		ASSERT(0<=nfound, "select");
+		if (nfound == 0 && LogDirty && LogF) {
+			fflush(LogF);
+			LogDirty = FALSE;
+		}
 		dprintf(stderr, "ttysrv.main_loop: select->%d\n", nfound);
 		for (fd = 0; fd <= highest_fd; fd++) {
 			if (!FD_ISSET(fd, &readfds)) {
@@ -247,7 +258,8 @@ main_loop()
 			dprintf(stderr, "ttysrv.main_loop: fd%d readable\n",
 				fd);
 			if (fd == Tty) {
-				tty_input(fd);
+				tty_input(fd, FALSE);
+				tty_input(fd, TRUE);
 				continue;
 			}
 			if (fd == Serv) {
@@ -259,19 +271,28 @@ main_loop()
 	}
 }
 
-tty_input(fd) {
-	int nchars;
+tty_input(fd, aggregate) {
+	int nchars, x;
 	unsigned char buf[TP_MAXVAR];
 
-	nchars = read(fd, buf, TP_MAXVAR);
-	if (nchars <= 0) {
+	nchars = 0;
+	do {
+		x = read(fd, buf+nchars, TP_MAXVAR-nchars);
+	} while (
+		 (x > 0) &&
+		 ((nchars += x) < TP_MAXVAR) &&
+		 (aggregate && (select(0, NULL, NULL, NULL, &TOinput) || TRUE))
+		 );
+	if (nchars == 0) {
 		return;
 	}
 	dprintf(stderr, "ttysrv.tty_input: %d bytes read on fd%d\n",
 		nchars, fd);
 	if (LogF) {
-		if (1 != fwrite(buf, nchars, 1, LogF)) {
+		if (nchars != fwrite(buf, sizeof(char), nchars, LogF)) {
 			perror("fwrite(LogF)");
+		} else {
+			LogDirty = TRUE;
 		}
 	}
 	for (fd = 0;  fd <= highest_fd;  fd++) {
@@ -306,7 +327,7 @@ serv_input(fd) {
 
 	dprintf(stderr, "ttysrv.serv_input: accepted fd%d\n", fd);
 
-	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0)|FNBLOCK);
+	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0)|O_NONBLOCK);
 	FD_SET(fd, &Clients);
 	if (fd > highest_fd) {
 		highest_fd = fd;
@@ -314,7 +335,6 @@ serv_input(fd) {
 }
 
 client_input(fd) {
-	char buf[TP_MAXVAR];
 	register int nchars;
 	register int i, new;
 	register unsigned int o;
@@ -341,8 +361,10 @@ client_input(fd) {
 		dprintf(stderr, "ttysrv.client_input: %d bytes read on fd%d\n",
 			nchars, fd);
 		if (LogF) {
-			if (1 != fwrite(buf, nchars, 1, LogF)) {
+			if (nchars != fwrite(T.c, sizeof(char), nchars, LogF)){
 				perror("fwrite(LogF)");
+			} else {
+				LogDirty = TRUE;
 			}
 		}
 		nchars = write(Tty, T.c, nchars);
@@ -482,6 +504,7 @@ find_parity(parity)
 }
 
 set_parity() {
+	Ttyios.c_cflag &= ~(PARENB|PARODD);
 	Ttyios.c_cflag |= SysParity;
 }
 
@@ -500,6 +523,7 @@ find_wordsize(wordsize)
 }
 
 set_wordsize() {
+	Ttyios.c_cflag &= ~CSIZE;
 	Ttyios.c_cflag |= SysWordsize;
 }
 

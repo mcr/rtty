@@ -1,11 +1,12 @@
-# $Id: Makefile,v 1.2 1992-04-18 04:16:37 vixie Exp $
+# $Id: Makefile,v 1.3 1992-06-23 16:27:18 vixie Exp $
 
 DESTROOT =
 DESTPATH = $(DESTROOT)/rtty
 DESTBIN = $(DESTPATH)/bin
 
-DEBUG = -O
-CFLAGS = $(DEBUG)
+CC = gcc
+CDEBUG = -O -g
+CFLAGS = $(CDEBUG)
 
 BINARY = ttysrv rtty locbrok
 SCRIPT = Startup console startsrv agelogs agelog
@@ -15,7 +16,7 @@ all: $(ALL)
 
 clean:; rm -rf $(ALL) *.o *.BAK *.CKP *~
 
-install: $(ALL)
+install: $(ALL) Makefile
 	set -x; for x in $(BINARY); do \
 		install -c -m 111 $$x $(DESTBIN)/$$x; \
 	done
@@ -32,20 +33,25 @@ rtty: rtty.o ttyprot.o connutil.o
 locbrok: locbrok.o
 	$(CC) -o locbrok locbrok.o
 
-console: console.sh
+console: console.sh Makefile
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
+	chmod +x $@
 
-startsrv: startsrv.sh
+startsrv: startsrv.sh Makefile
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
+	chmod +x $@
 
-agelogs: agelogs.sh
+agelogs: agelogs.sh Makefile
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
+	chmod +x $@
 
-Startup: Startup.sh
+Startup: Startup.sh Makefile
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
+	chmod +x $@
 
-agelog: agelog.sh
+agelog: agelog.sh Makefile
 	cp agelog.sh agelog
+	chmod +x $@
 
 ttysrv_saber:; #load $(CFLAGS) ttysrv.c ttyprot.c connutil.c
 rtty_saber:; #load $(CFLAGS) rtty.c ttyprot.c connutil.c
