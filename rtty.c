@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.16 2001-03-24 21:14:28 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.17 2001-03-25 05:41:16 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -89,7 +89,7 @@ int Debug = 0;
 
 int
 main(int argc, char *argv[]) {
-	char ch;
+	int ch;
 
 	ProgName = argv[0];
 

@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.17 2001-03-24 21:14:32 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.18 2001-03-25 05:41:17 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -136,8 +136,8 @@ static	int		set_baud(int),
 
 int
 main(int argc, char *argv[]) {
-	int i;
-	char ch, *msg;
+	int i, ch;
+	char *msg;
 
 	gethostname(Hostname, sizeof Hostname);
 	ProgName = argv[0];
