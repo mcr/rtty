@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: startsrv.sh,v 1.5 1996-08-23 22:25:25 vixie Exp $
+# $Id: startsrv.sh,v 1.6 1996-08-23 23:46:42 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -89,7 +89,7 @@ do
 	echo -n " newpid=$!"
 	sleep 1
 	chmod $sock_prot DESTPATH/sock/$host
-	chmod $sock_owner DESTPATH/sock/$host
+	chown $sock_owner DESTPATH/sock/$host
 	chmod $log_prot DESTPATH/log/$host
 	echo " done."
 done
