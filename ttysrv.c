@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.9 1993-12-28 01:15:10 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.10 1994-04-11 20:36:00 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -14,8 +14,7 @@ static char RCSid[] = "$Id: ttysrv.c,v 1.9 1993-12-28 01:15:10 vixie Exp $";
 #include <netdb.h>
 #include <pwd.h>
 #include <sys/file.h>
-#include <sys/types.h>
-#include <sys/bitypes.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -25,6 +24,9 @@ static char RCSid[] = "$Id: ttysrv.c,v 1.9 1993-12-28 01:15:10 vixie Exp $";
 #include <arpa/inet.h>
 
 #include "rtty.h"
+#ifdef NEED_BITYPES_H
+# include "bitypes.h"
+#endif
 #include "ttyprot.h"
 #ifdef WANT_TCPIP
 # include "locbrok.h"

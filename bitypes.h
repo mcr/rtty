@@ -1,5 +1,5 @@
 /*
- * $Id: bitypes.h,v 1.1 1994-04-11 20:26:43 vixie Exp $
+ * $Id: bitypes.h,v 1.2 1994-04-11 20:36:00 vixie Exp $
  */
 
 /*

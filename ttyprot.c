@@ -3,18 +3,20 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttyprot.c,v 1.5 1993-12-28 00:49:56 vixie Exp $";
+static char RCSid[] = "$Id: ttyprot.c,v 1.6 1994-04-11 20:36:00 vixie Exp $";
 #endif
 
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
 #include <termios.h>
-#include <sys/types.h>
-#include <sys/bitypes.h>
+#include <sys/param.h>
 #include <sys/uio.h>
 
 #include "rtty.h"
+#ifdef NEED_BITYPES_H
+# include "bitypes.h"
+#endif
 #include "ttyprot.h"
 
 #ifdef USE_STDLIB
