@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.21 2002-06-30 20:09:52 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.22 2002-06-30 20:26:53 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -132,6 +132,7 @@ static	void		main_loop(void),
 			lprintf(FILE *, const char *, ...);
 
 static	int		set_baud(int),
+			get_baud(speed_t),
 			find_parity(char *),
 			find_wordsize(int);
 
@@ -224,6 +225,7 @@ main(int argc, char *argv[]) {
 	if (LServSpec) {
 		struct sockaddr_un n;
 		struct stat statbuf;
+		int cc;
 
 		if (LServSpec[0] != '/') {
 			USAGE((stderr, "%s: -s must specify local pathname\n",
@@ -244,8 +246,8 @@ main(int argc, char *argv[]) {
 			}
 		}
 
-		ASSERT(0<=bind(LServ, (struct sockaddr *)&n, sizeof n),
-		       n.sun_path);
+		cc = bind(LServ, (struct sockaddr *)&n, sizeof n);
+		ASSERT(cc >= 0, n.sun_path);
 	}
 #ifdef WANT_TCPIP
 	if (RServSpec) {
@@ -560,7 +562,7 @@ client_input(int fd) {
 		if (WhosOn[fd]->state != auth)
 			break;
 		if (query) {
-			tp_sendctl(fd, TP_BAUD|TP_QUERY, Baud, NULL);
+			tp_sendctl(fd, TP_BAUD|TP_QUERY, get_baud(Baud), NULL);
 			break;
 		}
 		if ((set_baud(i) >= 0) &&
@@ -796,7 +798,6 @@ struct cstab { int wordsize, syswordsize; } cstab[] = {
 	{ 0, -1 }
 };
 
-
 #define baud(b) {(b), (B ## b)}
 
 static struct baud_map {
@@ -855,6 +856,17 @@ set_baud(int baud) {
 				return (-1);
 			return (0);
 		}
+	}
+	return (-1);
+}
+
+static int
+get_baud(speed_t code) {
+	struct baud_map *bp;
+
+	for (bp = baud_map; bp->bps != -1; bp++) {
+		if (code == bp->code)
+			return (bp->bps);
 	}
 	return (-1);
 }

@@ -2,13 +2,13 @@ rtty -- multiuser "tip"/"cu" replacement with logging
 Paul Vixie <vixie@isc.org> -- 24-March-2001 [V4.0 released]
 Paul Vixie <paul@vix.com> -- 27-December-1993 [V3.0 released]
 Paul Vixie <vixie@pa.dec.com> -- 1-January-1992 [V2.0 released]
-$Id: README,v 1.12 2002-06-28 19:09:41 vixie Exp $
+$Id: README,v 1.13 2002-06-30 20:26:53 vixie Exp $
 
 4.1 Release Notes (28-June-2002)
 
 More portability/lint work.  Make ~^Z work again (used to wedge on resume)
 Add -R option to ttysrv for rts/cts flow control. (remove nonfunctional -o option)
-Add -c option to rtty to set escape character (default '~').  (ed gould)
+Add -e option to rtty to set escape character (default '~').  (ed gould)
 
 4.0 Release Notes (24-March-2001)
 
