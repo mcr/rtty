@@ -1,7 +1,7 @@
 /* ttyprot.c - utility routines to deal with the rtty protocol
  * vixie 12Sep91 [new]
  *
- * $Id: ttyprot.c,v 1.1 1992-01-02 02:04:18 vixie Exp $
+ * $Id: ttyprot.c,v 1.2 1992-09-10 23:24:39 vixie Exp $
  */
 
 #include <sys/types.h>
@@ -10,16 +10,16 @@
 #include "ttyprot.h"
 #include "rtty.h"
 
-tp_senddata(fd, buf, len)
+tp_senddata(fd, buf, len, typ)
 	int fd;
 	register unsigned char *buf;
-	register int len;
+	register int len, typ;
 {
 	register int i;
 	ttyprot t;
 	struct iovec iov[2];
 
-	t.f = htons(TP_DATA);
+	t.f = htons(typ);
 	iov[0].iov_base = (caddr_t)&t;
 	iov[0].iov_len = TP_FIXED;
 	while (len > 0) {
