@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.22 2002-06-30 20:26:53 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.23 2003-02-14 19:28:19 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -329,12 +329,11 @@ main_loop(void) {
 		if (RServ != -1)
 			FD_SET(RServ, &readfds);
 		FD_SET(Tty, &readfds);
-#if defined(DEBUG) && !defined(__linux__)
+#if defined(DEBUG)
 		if (Debug > 2)
 			lprintf(stderr,
-				"main_loop: select(%d,%08x) LD=%d\n",
-				highest_fd+1, readfds.fds_bits[0],
-				LogDirty);
+				"main_loop: select(%d) LD=%d\n",
+				highest_fd+1, LogDirty);
 #endif
 		nfound = select(highest_fd+1, &readfds, NULL, NULL,
 				(LogDirty ?&TOflush :NULL));
