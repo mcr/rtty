@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: misc.c,v 1.1 1994-05-16 21:26:48 vixie Exp $";
+static char RCSid[] = "$Id: misc.c,v 1.2 1994-05-16 22:36:07 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -17,6 +17,12 @@ static char RCSid[] = "$Id: misc.c,v 1.1 1994-05-16 21:26:48 vixie Exp $";
 # include "bitypes.h"
 #endif
 #include "ttyprot.h"
+
+#ifdef USE_STDLIB
+# include <stdlib.h>
+#else
+extern	char		*malloc __P((int size));
+#endif
 
 #if DEBUG
 extern	int		Debug;
@@ -95,5 +101,21 @@ isnumber(s)
 			return (0);
 	}
 	return (n != 0);
+}
+#endif
+
+#ifdef NEED_STRDUP
+char *
+strdup(s)
+	const char *s;
+{
+	char *ret = malloc(strlen(s) + 1);
+
+	if (!ret) {
+		perror("malloc");
+		exit(1);
+	}
+	strcpy(ret, s);
+	return (ret);
 }
 #endif

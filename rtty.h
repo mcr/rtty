@@ -1,7 +1,7 @@
 /* rtty.h - definitions for rtty package
  * vix 01nov91 [written]
  *
- * $Id: rtty.h,v 1.5 1994-05-16 06:36:09 vixie Exp $
+ * $Id: rtty.h,v 1.6 1994-05-16 22:36:07 vixie Exp $
  */
 
 #define ASSERT2(e, m1, m2)	if (!(e)) {int save_errno=errno;\
@@ -45,4 +45,8 @@
 /* something in ULTRIX that we want to use if it's there */
 #ifndef TAUTOFLOW
 #define TAUTOFLOW 0
+#endif
+
+#ifdef NEED_STRDUP
+extern	char	*strdup __P((const char *));
 #endif

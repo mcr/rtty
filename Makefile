@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.9 1994-05-16 06:36:09 vixie Exp $
+# $Id: Makefile,v 1.10 1994-05-16 22:36:07 vixie Exp $
 
 VERSION = 3.1.dev
 
@@ -13,7 +13,8 @@ CDEBUG = -O -g
 # use -U to undefine, -D to define
 #	WANT_TCP	insecure network transparency
 #	NEED_BITYPES_H	if you aren't on BSD/386 1.1, BSD 4.4, or SGI IRIX5
-CDEFS = -DDEBUG -UWANT_TCPIP -UNEED_BITYPES_H
+#	NEED_STRDUP	if your C library isn't POSIX compliant
+CDEFS = -DDEBUG -UWANT_TCPIP -UNEED_BITYPES_H -UNEED_STRDUP
 CFLAGS = $(CDEBUG) $(CDEFS) -I/usr/local/include
 LIBS = 
 #(if WANT_TCPIP defined and this isn't in your libc)
