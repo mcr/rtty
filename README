@@ -1,7 +1,11 @@
 rtty -- multiuser "tip"/"cu" replacement with logging
 Paul Vixie <vixie@pa.dec.com> -- 1-January-1992 [V2.0 released]
 Paul Vixie <paul@vix.com> -- 27-December-1993 [V3.0 released]
-$Id: README,v 1.7 1996-08-23 22:25:25 vixie Exp $
+$Id: README,v 1.8 1997-08-22 20:11:54 vixie Exp $
+
+3.3 Release Notes (22-August-1997)
+
+Portability to BSD/OS 3.0, bug fixes, better logging.
 
 3.2 Release Notes (23-August-1996)
 

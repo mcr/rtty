@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.14 1996-08-23 22:26:53 vixie Exp $
+# $Id: Makefile,v 1.15 1997-08-22 20:11:54 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -59,7 +59,7 @@ bin.tar:; tar cf bin.tar $(ALL)
 
 install: $(ALL) Makefile
 	-set -x; test -d $(DESTPATH) || mkdir $(DESTPATH)
-	-set +e -x; for x in bin dev sock log pid opt; do \
+	-set +e -x; for x in bin dev sock log pid opt out; do \
 		test -d $(DESTPATH)/$$x || mkdir $(DESTPATH)/$$x; \
 	done
 	set -x; for x in $(BINARY); do \
@@ -114,7 +114,7 @@ version.c: Makefile
 	( \
 	  echo "#ifndef LINT"; \
 	  echo "char Copyright[] ="; \
-	  echo '  "Copyright 1996 by Internet Software Consortium";'; \
+	  echo '  "Copyright 1996,1997 by Internet Software Consortium";'; \
 	  echo "char Version[] ="; \
 	  echo '  "Version $(VERSION) ('`whoami`'@'`hostname`' '`date`')";'; \
 	  echo "#endif"; \

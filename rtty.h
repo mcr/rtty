@@ -1,7 +1,7 @@
 /* rtty.h - definitions for rtty package
  * vix 01nov91 [written]
  *
- * $Id: rtty.h,v 1.8 1996-08-23 22:25:25 vixie Exp $
+ * $Id: rtty.h,v 1.9 1997-08-22 20:11:54 vixie Exp $
  */
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -35,10 +35,12 @@
 #define min(a,b) ((a>b)?b:a)
 #define max(a,b) ((a>b)?a:b)
 
-#ifdef DEBUG
-#define dprintf if (Debug) fprintf
-#else
-#define	fprintf (void)
+#ifndef dprintf
+# ifdef DEBUG
+#  define dprintf if (Debug) fprintf
+# else
+#  define dprintf (void)
+# endif
 #endif
 
 #ifndef __P

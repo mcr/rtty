@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.15 1996-08-23 22:25:25 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.16 1997-08-22 20:11:54 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -38,8 +38,15 @@ static char RCSid[] = "$Id: ttysrv.c,v 1.15 1996-08-23 22:25:25 vixie Exp $";
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
+#include <stdarg.h>
 #include <netdb.h>
 #include <pwd.h>
+
+#if defined(DEBUG) && !defined(dprintf)
+#define dprintf if (Debug) lprintf
+#else
+#define	dprintf (void)
+#endif
 
 #include "rtty.h"
 #ifdef NEED_BITYPES_H
@@ -132,7 +139,8 @@ static	void		main_loop __P((void)),
 			set_parity __P((u_int)),
 			set_wordsize __P((u_int)),
 			auth_needed __P((int)),
-			auth_ok __P((int));
+			auth_ok __P((int)),
+			lprintf __P((FILE *, const char *, ...));
 
 static	int		set_baud __P((int)),
 			find_parity __P((char *)),
@@ -204,7 +212,7 @@ main(argc, argv)
 		perror(TtySpec);
 		exit(2);
 	}
-	dprintf(stderr, "ttysrv.main: tty open on fd%d\n", Tty);
+	dprintf(stderr, "main: tty open on fd%d\n", Tty);
 	tcgetattr(Tty, &Ttyios);
 	Ttyios_orig = Ttyios;
 	prepare_term(&Ttyios);
@@ -320,7 +328,7 @@ main_loop()
 		listen(LServ, 10);
 	if (RServ != -1)
 		listen(RServ, 10);
-	dprintf(stderr, "ttysrv.main: LServ=%d, RServ=%d\n", LServ, RServ);
+	dprintf(stderr, "main: LServ=%d, RServ=%d\n", LServ, RServ);
 	signal(SIGPIPE, sigpipe);
 	signal(SIGHUP, sighup);
 	FD_ZERO(&Clients);
@@ -336,9 +344,12 @@ main_loop()
 		if (RServ != -1)
 			FD_SET(RServ, &readfds);
 		FD_SET(Tty, &readfds);
-#if 0
-		dprintf(stderr, "ttysrv.main_loop: select(%d,%08x)\n",
-			highest_fd+1, readfds.fds_bits[0]);
+#ifdef DEBUG
+		if (Debug > 2)
+			lprintf(stderr,
+				"main_loop: select(%d,%08x) LD=%d\n",
+				highest_fd+1, readfds.fds_bits[0],
+				LogDirty);
 #endif
 		nfound = select(highest_fd+1, &readfds, NULL, NULL,
 				(LogDirty ?&TOflush :NULL));
@@ -349,15 +360,15 @@ main_loop()
 			LogDirty = FALSE;
 		}
 		Now = time(0);
-#if 0
-		dprintf(stderr, "ttysrv.main_loop: select->%d\n", nfound);
+#ifdef DEBUG
+		if (Debug > 2)
+			lprintf(stderr, "main_loop: select->%d\n", nfound);
 #endif
 		for (fd = 0; fd <= highest_fd; fd++) {
 			if (!FD_ISSET(fd, &readfds)) {
 				continue;
 			}
-			dprintf(stderr, "ttysrv.main_loop: fd%d readable\n",
-				fd);
+			dprintf(stderr, "main_loop: fd%d readable\n", fd);
 			if (fd == Tty) {
 				tty_input(fd, FALSE);
 				tty_input(fd, TRUE);
@@ -373,21 +384,22 @@ main_loop()
 static void
 tty_input(fd, aggregate) {
 	u_char buf[TP_MAXVAR];
-	int nchars, x;
+	int nchars, x, nloops;
 
 	nchars = 0;
+	nloops = 0;
 	do {
+		nloops++;
 		x = read(fd, buf+nchars, TP_MAXVAR-nchars);
 	} while ((x > 0) &&
 		 ((nchars += x) < TP_MAXVAR) &&
 		 (aggregate && !select(0, NULL, NULL, NULL, &TOinput))
 		 )
 	;
-	if (nchars == 0) return;
 #ifdef DEBUG
 	if (Debug) {
-		fprintf(stderr, "ttysrv.tty_input: %d bytes read on fd%d",
-			nchars, fd);
+		lprintf(stderr, "tty_input: %d bytes read on fd%d (nl %d)",
+			nchars, fd, nloops);
 		if (Debug > 1) {
 			fputs(": \"", stderr);
 			cat_v(stderr, buf, nchars);
@@ -396,6 +408,8 @@ tty_input(fd, aggregate) {
 		fputc('\n', stderr);
 	}
 #endif
+	if (nchars == 0)
+		return;
 	if (LogF) {
 		if (nchars != fwrite(buf, sizeof(char), nchars, LogF)) {
 			perror("fwrite(LogF)");
@@ -422,10 +436,10 @@ broadcast(buf, nchars, typ)
 		Sigpiped = 0;
 		x = tp_senddata(fd, buf, nchars, typ);
 		dprintf(stderr,
-			"ttysrv.tty_input: %d bytes sent to client on fd%d\n",
+			"tty_input: %d bytes sent to client on fd%d\n",
 			x, fd);
 		if (Sigpiped) {
-			dprintf(stderr, "ttysrv.tty_input: sigpipe on fd%d\n",
+			dprintf(stderr, "tty_input: sigpipe on fd%d\n",
 				fd);
 			close_client(fd);
 		}
@@ -450,14 +464,14 @@ serv_input(fd) {
 		abort();
 	}
 
-	dprintf(stderr, "ttysrv.serv_input: accepting on fd%d\n", fd);
+	dprintf(stderr, "serv_input: accepting on fd%d\n", fd);
 
 	if ((fd = accept(fd, sa, &fromlen)) == -1) {
 		perror("accept");
 		return;
 	}
 
-	dprintf(stderr, "ttysrv.serv_input: accepted fd%d\n", fd);
+	dprintf(stderr, "serv_input: accepted fd%d\n", fd);
 
 #if 0
 	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0)|O_NONBLOCK);
@@ -494,9 +508,9 @@ serv_input(fd) {
 }
 
 static void
-client_input(fd) {
-	struct passwd *pw;
+client_input(int fd) {
 	int nchars, i, new, query;
+	struct passwd *pw;
 	u_short salt;
 	char s[3];
 	u_int f;
@@ -523,15 +537,9 @@ client_input(fd) {
 	f = ntohs(T.f) & TP_TYPEMASK;
 #ifdef DEBUG
 	if (Debug) {
-		fprintf(stderr,
-			"ttysrv: #%d fd%d i=0x%x o='%c' f=0x%x",
+		lprintf(stderr,
+			"client_input: nchars=%d fd%d i=0x%x o='%c' f=0x%x\n",
 			nchars, fd, i, query?'Q':' ', f);
-		if (Debug > 1) {
-			fputs(": \"", stderr);
-			cat_v(stderr, (u_char *)&T, nchars);
-			fputs("\"", stderr);
-		}
-		fputc('\n', stderr);
 	}
 #endif
 	switch (f) {
@@ -540,6 +548,7 @@ client_input(fd) {
 			close_client(fd);
 			break;
 		}
+		dprintf(stderr, "client_input: TP_DATA, nchars=%d\n", nchars);
 		if (WhosOn[fd]->state != auth)
 			break;
 # if WANT_CLIENT_LOGGING
@@ -552,17 +561,23 @@ client_input(fd) {
 		}
 # endif /*WANT_CLIENT_LOGGING*/
 		nchars = write(Tty, T.c, nchars);
+#ifdef DEBUG
+		if (Debug > 2) {
+			lprintf(stderr, "client_input: wrote to tty: \"");
+			cat_v(stderr, (u_char *)&T.c, nchars);
+			fputs("\"\n", stderr);
+		}
+#endif
 		break;
 	case TP_BREAK:
 		if (WhosOn[fd]->state != auth)
 			break;
-		dprintf(stderr, "ttysrv.client_input: sending break\n");
+		dprintf(stderr, "client_input: sending break\n");
 		tcsendbreak(Tty, 0);
 		tp_senddata(fd, (u_char *)"BREAK", 5, TP_NOTICE);
-		if (LogF) {
+		if (LogF)
 			fputs("[BREAK]", LogF);
-		}
-		dprintf(stderr, "ttysrv.client_input: done sending break\n");
+		dprintf(stderr, "client_input: done sending break\n");
 		break;
 	case TP_BAUD:
 		if (WhosOn[fd]->state != auth)
@@ -574,9 +589,8 @@ client_input(fd) {
 		if ((set_baud(i) >= 0) &&
 		    (install_ttyios(Tty, &Ttyios) >= 0)) {
 			Baud = i;
-			if (LogF) {
+			if (LogF)
 				fprintf(LogF, "[baud now %d]", i);
-			}
 			tp_sendctl(fd, TP_BAUD, 1, NULL);
 		} else {
 			tp_sendctl(fd, TP_BAUD, 0, NULL);
@@ -764,7 +778,7 @@ client_input(fd) {
 		}
 		break;
 	default:
-		fprintf(stderr, "ttysrv: bad T: f=0x%x\n", ntohs(T.f));
+		dprintf(stderr, "client_input: bad T: f=0x%x\n", ntohs(T.f));
 		break;
 	}
 }
@@ -915,9 +929,26 @@ open_log() {
 
 static void
 quit(x) {
-	fprintf(stderr, "\r\nttysrv exiting\r\n");
-	if (Ttyios_set && (Tty != -1)) {
+	dprintf(stderr, "\r\nttysrv exiting\r\n");
+	if (Ttyios_set && (Tty != -1))
 		(void) install_ttyios(Tty, &Ttyios_orig);
-	}
 	exit(0);
+}
+
+static void
+lprintf(FILE *fp, const char *fmt, ...) {
+	va_list ap;
+	struct timeval tvnow;
+	struct tm *tmnow;
+	time_t now;
+
+	va_start(ap, fmt);
+	(void) gettimeofday(&tvnow, NULL);
+	now = (time_t) tvnow.tv_sec;
+	tmnow = localtime(&now);
+	fprintf(fp, "%02d:%02d:%02d.%03d ",
+		tmnow->tm_hour, tmnow->tm_min, tmnow->tm_sec,
+		tvnow.tv_usec / 1000);
+	vfprintf(fp, fmt, ap);
+	va_end(ap);
 }

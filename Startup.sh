@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: Startup.sh,v 1.3 1996-08-23 22:25:25 vixie Exp $
+# $Id: Startup.sh,v 1.4 1997-08-22 20:11:54 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -17,7 +17,9 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-cd DESTPATH/dev
+cd DESTPATH
+rm -f pid/*
+cd dev
 DESTPATH/bin/startsrv *
 
 exit

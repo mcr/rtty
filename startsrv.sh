@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: startsrv.sh,v 1.7 1996-08-23 23:51:09 vixie Exp $
+# $Id: startsrv.sh,v 1.8 1997-08-22 20:11:54 vixie Exp $
 
 # Copyright (c) 1996 by Internet Software Consortium.
 #
@@ -28,13 +28,12 @@ do
 	#
 	# kill any existing ttysrv on this port
 	#
-	[ -f DESTPATH/pid/$host ] && {
+	if [ -f DESTPATH/pid/$host ]; then
 		pid=`cat DESTPATH/pid/$host`
-		echo -n " oldpid=$pid"
 		while ps w$pid >/tmp/startsrv$$ 2>&1
 		do
-			grep -s ttysrv /tmp/startsrv$$ && {
-				echo -n " killed"
+			grep -q ttysrv /tmp/startsrv$$ && {
+				echo -n " $pid killed"
 				kill $pid
 				sleep 1
 			} || {
@@ -42,7 +41,7 @@ do
 			}
 		done
 		rm DESTPATH/pid/$host /tmp/startsrv$$
-	}
+	fi
 	#
 	# start up a new one
 	#
@@ -78,20 +77,29 @@ do
 		log_prot="$default_log_prot"
 	fi
 
-	rm -f DESTPATH/sock/$host
-	# braces are needed due to obscure bug in ash
-	# they won't hurt other systems
-	{ DESTPATH/bin/ttysrv $options \
+	rm -f DESTPATH/sock/$host DESTPATH/pid/$host
+	daemon DESTPATH/bin/ttysrv $options \
 		-t DESTPATH/dev/$host \
 		-s DESTPATH/sock/$host \
-		-l DESTPATH/log/$host & }
-	echo $! >DESTPATH/pid/$host
-	echo -n " newpid=$!"
-	sleep 1
-	chmod $sock_prot DESTPATH/sock/$host
-	chown $sock_owner DESTPATH/sock/$host
-	chmod $log_prot DESTPATH/log/$host
-	echo " done."
+		-l DESTPATH/log/$host \
+		-i DESTPATH/pid/$host \
+		> DESTPATH/out/$host 2>&1
+	echo -n " "
+	tries=5
+	while [ $tries -gt 0 -a ! -f DESTPATH/pid/$host ]; do
+		echo -n "."
+		sleep 1
+		tries=`expr $tries - 1`
+	done
+	if [ ! -f DESTPATH/pid/$host ]; then
+		echo " [startup failed]"
+	else
+		newpid=`cat DESTPATH/pid/$host`
+		chmod $sock_prot DESTPATH/sock/$host
+		chown $sock_owner DESTPATH/sock/$host
+		chmod $log_prot DESTPATH/log/$host
+		echo " $newpid started"
+	fi
 done
 
 exit
