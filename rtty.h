@@ -1,7 +1,7 @@
 /* rtty.h - definitions for rtty package
  * vix 01nov91 [written]
  *
- * $Id: rtty.h,v 1.6 1994-05-16 22:36:07 vixie Exp $
+ * $Id: rtty.h,v 1.7 1996-08-23 21:39:14 vixie Exp $
  */
 
 #define ASSERT2(e, m1, m2)	if (!(e)) {int save_errno=errno;\
@@ -47,6 +47,10 @@
 #define TAUTOFLOW 0
 #endif
 
+extern	void	*safe_malloc __P((size_t)),
+		*safe_calloc __P((size_t, size_t)),
+		*safe_realloc __P((void *, size_t));
+			
 #ifdef NEED_STRDUP
 extern	char	*strdup __P((const char *));
 #endif

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 1994-05-16 22:36:07 vixie Exp $
+# $Id: Makefile,v 1.11 1996-08-23 21:39:14 vixie Exp $
 
 VERSION = 3.1.dev
 
@@ -10,11 +10,19 @@ DESTBIN = $(DESTPATH)/bin
 
 CC = cc
 CDEBUG = -O -g
+#
 # use -U to undefine, -D to define
+#	DEBUG		include code to help debug this software
 #	WANT_TCP	insecure network transparency
 #	NEED_BITYPES_H	if you aren't on BSD/386 1.1, BSD 4.4, or SGI IRIX5
 #	NEED_STRDUP	if your C library isn't POSIX compliant
-CDEFS = -DDEBUG -UWANT_TCPIP -UNEED_BITYPES_H -UNEED_STRDUP
+#	NEED_INET_ATON	if your C library is pretty old wrt BSD 4.4
+#	NO_SOCKADDR_LEN	if your "struct sockaddr_in" lacks a sin_len field
+#	NO_HSTRERROR	if your C library has no hstrerror() function
+#
+CDEFS = -DDEBUG -UWANT_TCPIP -UNEED_BITYPES_H -UNEED_STRDUP -UNEED_INET_ATON \
+	-UNO_SOCKADDR_LEN -UNO_HSTRERROR
+#
 CFLAGS = $(CDEBUG) $(CDEFS) -I/usr/local/include
 LIBS = 
 #(if WANT_TCPIP defined and this isn't in your libc)
@@ -72,20 +80,19 @@ Startup: Startup.sh Makefile
 	chmod +x $@
 
 agelog: agelog.sh Makefile
-	cp agelog.sh agelog
+	cat <$@.sh >$@
 	chmod +x $@
 
 ttysrv_saber:; #load $(CFLAGS) ttysrv.c ttyprot.c connutil.c
 rtty_saber:; #load $(CFLAGS) rtty.c ttyprot.c connutil.c
 locbrok_saber:; #load $(CFLAGS) locbrok.c
 
-ttysrv.o: ttysrv.c ttyprot.h rtty.h
-rtty.o: rtty.c ttyprot.h rtty.h
-ttyprot.o: ttyprot.c ttyprot.h rtty.h
-locbrok.o: locbrok.c locbrok.h rtty.h
-connutil.o: connutil.c rtty.h
-misc.o: misc.c rtty.h ttyprot.h
-version.o: version.c
+ttysrv.o:	Makefile ttysrv.c ttyprot.h rtty.h
+rtty.o:		Makefile rtty.c ttyprot.h rtty.h
+ttyprot.o:	Makefile ttyprot.c ttyprot.h rtty.h
+locbrok.o:	Makefile locbrok.c locbrok.h rtty.h
+connutil.o:	Makefile connutil.c rtty.h
+misc.o:		Makefile misc.c rtty.h ttyprot.h
 
 version.c: Makefile
 	rm -f version.c

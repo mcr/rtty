@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.5 1994-05-16 06:36:09 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.6 1996-08-23 21:39:14 vixie Exp $";
 #endif
 
 #ifdef DEBUG
@@ -27,8 +27,7 @@ int Debug = 0;
 #ifdef USE_STDLIB
 #include <stdlib.h>
 #else
-extern	void		*malloc __P((size_t)),
-			free __P((void *));
+extern	void		free __P((void *));
 #endif
 
 extern	int		optind, opterr,
@@ -48,19 +47,18 @@ typedef struct reg_db {
 } reg_db;
 
 static	reg_db		*find_byname __P((char *name)),
-			*find_byport __P((u_short port));
+			*find_byport __P((u_int port));
 
-static	int		add __P((char *name, u_short port, u_short client));
+static	int		add __P((char *name, u_int port, u_int client));
 
 static	void		server __P((void)),
 			client_input __P((int fd)),
-			rm_byclient __P((u_short client)),
+			rm_byclient __P((u_int client)),
 			print __P((void));
 
 static	char		*ProgName = "amnesia",
 			*Service = LB_SERVNAME;
 static	int		Port,
-			Debug = 0,
 			MaxFD;
 static	fd_set		Clients;
 static	reg_db		*RegDB = NULL;
@@ -112,7 +110,9 @@ server() {
 	setsockopt(serv, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof on);
 
 	name.sin_family = AF_INET;
+#ifndef NO_SOCKADDR_LEN
 	name.sin_len = sizeof(struct sockaddr_in);
+#endif
 	name.sin_addr.s_addr = INADDR_ANY;
 	name.sin_port = htons(Port);
 	ASSERT(bind(serv, (struct sockaddr *)&name, sizeof name)>=0, "bind")
@@ -232,7 +232,7 @@ find_byname(name)
 
 static reg_db *
 find_byport(port)
-	u_short port;
+	u_int port;
 {
 	reg_db *db;
 
@@ -245,15 +245,15 @@ find_byport(port)
 static int
 add(name, port, client)
 	char *name;
-	u_short port;
-	u_short client;
+	u_int port;
+	u_int client;
 {
 	reg_db *db;
 
 	if (find_byname(name) || find_byport(port))
 		return (-1);
-	db = (reg_db *) malloc(sizeof(reg_db));
-	db->name = malloc(strlen(name)+1);
+	db = (reg_db *) safe_malloc(sizeof(reg_db));
+	db->name = safe_malloc(strlen(name)+1);
 	strcpy(db->name, name);
 	db->port = port;
 	db->client = client;
@@ -264,7 +264,7 @@ add(name, port, client)
 
 static void
 rm_byclient(client)
-	u_short client;
+	u_int client;
 {
 	register reg_db *cur = RegDB, *prev = NULL;
 

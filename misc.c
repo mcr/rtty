@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: misc.c,v 1.3 1994-05-17 07:14:15 vixie Exp $";
+static char RCSid[] = "$Id: misc.c,v 1.4 1996-08-23 21:39:14 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -11,6 +11,9 @@ static char RCSid[] = "$Id: misc.c,v 1.3 1994-05-17 07:14:15 vixie Exp $";
 #include <string.h>
 #include <termios.h>
 #include <sys/param.h>
+#ifdef NEED_INET_ATON
+# include <netinet/in.h>
+#endif
 
 #include "rtty.h"
 #ifdef NEED_BITYPES_H
@@ -21,7 +24,9 @@ static char RCSid[] = "$Id: misc.c,v 1.3 1994-05-17 07:14:15 vixie Exp $";
 #ifdef USE_STDLIB
 # include <stdlib.h>
 #else
-extern	char		*malloc __P((int size));
+extern	void		*calloc __P((size_t, size_t)),
+			*malloc __P((size_t)),
+			*realloc __P((void *, size_t));
 #endif
 
 #if DEBUG
@@ -83,6 +88,46 @@ prepare_term(ios)
 	ios->c_cc[VTIME] = 0;
 }
 
+void *
+safe_malloc(size)
+	size_t size;
+{
+	void *ret = malloc(size);
+
+	if (!ret) {
+		perror("malloc");
+		exit(1);
+	}
+	return (ret);
+}
+
+void *
+safe_calloc(n, size)
+	size_t n, size;
+{
+	void *ret = calloc(n, size);
+
+	if (!ret) {
+		perror("calloc");
+		exit(1);
+	}
+	return (ret);
+}
+
+void *
+safe_realloc(ptr, size)
+	void *ptr;
+	size_t size;
+{
+	void *ret = realloc(ptr, size);
+
+	if (!ret) {
+		perror("realloc");
+		exit(1);
+	}
+	return (ret);
+}
+
 #ifndef isnumber
 /*
  * from libvixutil.a (14may94 version)
@@ -109,13 +154,24 @@ char *
 strdup(s)
 	const char *s;
 {
-	char *ret = (char *) malloc(strlen(s) + 1);
+	char *ret = (char *) safe_malloc(strlen(s) + 1);
 
-	if (!ret) {
-		perror("malloc");
-		exit(1);
-	}
 	strcpy(ret, s);
 	return (ret);
+}
+#endif
+
+#ifdef NEED_INET_ATON
+int inet_aton(cp, addr)
+	const char *cp;
+	struct in_addr *addr;
+{
+	u_int32_t v;
+
+	if ((v = inet_addr(cp)) > 0) {
+		addr->s_addr = v;
+		return (1);
+	}
+	return (0);
 }
 #endif

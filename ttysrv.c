@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.12 1994-05-17 07:14:15 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.13 1996-08-23 21:39:14 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -47,10 +47,7 @@ struct whoson {
 #ifdef USE_STDLIB
 #include <stdlib.h>
 #else
-extern	void		*calloc __P((size_t, size_t)),
-			*malloc __P((size_t)),
-			*realloc __P((void *, size_t)),
-			free __P((void *));
+extern	void		free __P((void *));
 #endif
 
 #ifdef USE_UNISTD
@@ -249,7 +246,9 @@ main(argc, argv)
 		ASSERT(RServ>=0, "socket");
 
 		n.sin_family = AF_INET;
+#ifndef NO_SOCKADDR_LEN
 		n.sin_len = sizeof(struct sockaddr_in);
+#endif
 		n.sin_port = 0;			/* "any" */
 		n.sin_addr.s_addr = INADDR_ANY;
 		ASSERT(0<=bind(RServ, (struct sockaddr *)&n, sizeof n),

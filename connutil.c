@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: connutil.c,v 1.5 1994-05-16 06:36:09 vixie Exp $";
+static char RCSid[] = "$Id: connutil.c,v 1.6 1996-08-23 21:39:14 vixie Exp $";
 #endif
 
 #ifdef WANT_TCPIP
@@ -17,6 +17,8 @@ static char RCSid[] = "$Id: connutil.c,v 1.5 1994-05-16 06:36:09 vixie Exp $";
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+
+#include "rtty.h"
 
 extern	int		h_errno;
 extern	char		*ProgName;
@@ -71,7 +73,7 @@ rconnect(host, service, verbose, errors, timeout)
 	FILE *errors;
 	int timeout;
 {
-	long **hp;
+	u_int32_t **hp;
 	struct hostent *h;
 	struct sockaddr_in n;
 	int port, sock, done;
@@ -90,7 +92,9 @@ rconnect(host, service, verbose, errors, timeout)
 	}
 
 	n.sin_family = AF_INET;
+#ifndef NO_SOCKADDR_LEN
 	n.sin_len = sizeof(struct sockaddr_in);
+#endif
 	n.sin_port = port;
 
 	if (inet_aton(host, &n.sin_addr)) {
@@ -103,12 +107,17 @@ rconnect(host, service, verbose, errors, timeout)
 		h = gethostbyname(host);
 		if (!h) {
 			if (errors) {
+#ifndef NO_HSTRERROR
 				fprintf(errors,
 					"%s: %s\n", host, hstrerror(h_errno));
+#else
+				fprintf(errors,
+					"%s: cannot resolve hostname\n", host);
+#endif
 			}
 			return -1;
 		}
-		for (hp = (long**)h->h_addr_list;  *hp;  hp++) {
+		for (hp = (u_int32_t**)h->h_addr_list;  *hp;  hp++) {
 			bcopy(*hp, (caddr_t)&n.sin_addr.s_addr, h->h_length);
 			if (verbose) {
 				fprintf(verbose,
