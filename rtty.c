@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.23 2002-06-30 20:18:13 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.24 2003-02-14 19:38:50 vixie Exp $";
 #endif
 
 /*
@@ -29,6 +29,7 @@ static char RCSid[] = "$Id: rtty.c,v 1.23 2002-06-30 20:18:13 vixie Exp $";
 #include <sys/un.h>
 #include <sys/param.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -59,11 +60,12 @@ extern	int		rconnect(char *host, char *service,
 				 int timeout);
 extern	char		Version[];
 
-static	char		*ProgName = "amnesia",
-			WhoAmI[TP_MAXVAR],
+static	const char	*ProgName = "amnesia",
 			*ServSpec = NULL,
 			*Login = NULL,
-			*TtyName = NULL,
+			*TtyName = NULL;
+
+static	char		WhoAmI[TP_MAXVAR],
 			LogSpec[MAXPATHLEN];
 static	int		Serv = -1,
 			Log = -1,
@@ -81,7 +83,7 @@ static	void		main_loop(void),
 			query_or_set(int, int),
 			logging(int),
 			serv_input(int),
-			server_replied(char *, int),
+			server_replied(const char *, int),
 			server_died(void),
 			quit(int),
 			restricted_help(void),
@@ -513,10 +515,10 @@ serv_input(int fd) {
 			server_died();
 		}
 		if (SevenBit) {
-			int i;
+			int x;
 
-			for (i = 0; i < nchars; i++)
-				T.c[i] &= 0x7f;
+			for (x = 0; x < nchars; x++)
+				T.c[x] &= 0x7f;
 		}
 		switch (t) {
 		case TP_DATA:
@@ -594,7 +596,7 @@ serv_input(int fd) {
 }
 
 static void
-server_replied(char *msg, int i) {
+server_replied(const char *msg, int i) {
 	fprintf(stderr, "[%s %s]\r\n", msg, i ? "accepted" : "rejected");
 }
 
@@ -612,7 +614,7 @@ quit(int x) {
 	exit(0);
 }
 
-char *r_help_strs[] = {
+const char *r_help_strs[] = {
 	"^Z - suspend program",
 	"^L - set logging",
 	"q - query server",
@@ -620,7 +622,7 @@ char *r_help_strs[] = {
 	NULL
 };
 
-char *help_strs[] = {
+const char *help_strs[] = {
 	". - exit program",
 	"# - send BREAK",
 	"? - this message",
@@ -629,7 +631,7 @@ char *help_strs[] = {
 
 static void
 restricted_help(void) {
-	char **cp;
+	const char * const *cp;
 
 	fprintf(stderr, "\r\n");
 	for (cp = r_help_strs; *cp; cp++)
@@ -638,7 +640,7 @@ restricted_help(void) {
 
 static void
 unrestricted_help(void) {
-	char **cp;
+	const char * const *cp;
 
 	fprintf(stderr, "\r\n");
 	fprintf(stderr, "%c%c  - send one escape character (%c)\r\n",

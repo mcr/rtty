@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.17 2001-03-24 21:14:24 vixie Exp $
+# $Id: Makefile,v 1.18 2003-02-14 19:38:50 vixie Exp $
 
 # Copyright (c) 1996,1997 by Internet Software Consortium.
 #
@@ -23,7 +23,7 @@ DESTROOT =
 DESTPATH = $(DESTROOT)/usr/local/rtty
 DESTBIN = $(DESTPATH)/bin
 
-#CC = cc
+#CC = gcc -Wall -Wshadow -Wwrite-strings
 CDEBUG = -O
 #
 # use -U to undefine, -D to define

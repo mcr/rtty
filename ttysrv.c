@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.23 2003-02-14 19:28:19 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.24 2003-02-14 19:38:50 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -80,12 +80,12 @@ extern	int		rconnect(char *host, char *service,
 				 int timeout);
 extern	char		Version[];
 
-static	char		*ProgName = "amnesia",
-			*LServSpec = NULL,
+static	const char	*ProgName = "amnesia",
+			*Parity = "none";
+static	char		*LServSpec = NULL,
 			*RServSpec = NULL,
 			*TtySpec = NULL,
 			*LogSpec = NULL,
-			*Parity = "none",
 			ParityBuf[TP_MAXVAR],
 			*PidFile = NULL;
 static	int		LServ = -1,
@@ -133,13 +133,12 @@ static	void		main_loop(void),
 
 static	int		set_baud(int),
 			get_baud(speed_t),
-			find_parity(char *),
+			find_parity(const char *),
 			find_wordsize(int);
 
 int
 main(int argc, char *argv[]) {
 	int i, ch, want_rtscts = 0;
-	char *msg;
 
 	gethostname(Hostname, sizeof Hostname);
 	ProgName = argv[0];
@@ -782,7 +781,7 @@ close_client(int fd) {
 	}
 }
 
-struct partab { char *parity; int sysparity; } partab[] = {
+struct partab { const char *parity; int sysparity; } partab[] = {
 	{ "even", PARENB },
 	{ "odd", PARENB|PARODD },
 	{ "none", 0 },
@@ -871,7 +870,7 @@ get_baud(speed_t code) {
 }
 
 static int
-find_parity(char *parity) {
+find_parity(const char *parity) {
 	struct partab *parp;
 	int sysparity = -1;
 
