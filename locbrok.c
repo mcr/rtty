@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.11 2003-02-14 19:28:53 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.12 2003-02-14 19:29:21 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -60,7 +60,7 @@ typedef struct reg_db {
 static	reg_db		*find_byname(const char *name),
 			*find_byport(u_int port);
 
-static	int		add(char *name, u_int port, u_int client);
+static	int		add(const char *name, u_int port, u_int client);
 
 static	void		server(void),
 			client_input(int fd),
