@@ -1,4 +1,8 @@
-# $Id: Makefile,v 1.4 1992-09-10 23:32:43 vixie Exp $
+# $Id: Makefile,v 1.5 1992-11-12 18:24:44 vixie Exp $
+
+VERSION = 2.5
+
+VPATH = ../src
 
 DESTROOT =
 DESTPATH = $(DESTROOT)/rtty
@@ -18,6 +22,8 @@ clean:; rm -rf $(ALL) *.o *.BAK *.CKP *~
 
 kit:; shar -o ../kit README Makefile *.c *.h *.sh
 
+bin.tar:; tar cf bin.tar $(ALL)
+
 install: $(ALL) Makefile
 	set -x; for x in $(BINARY); do \
 		install -c -m 111 $$x $(DESTBIN)/$$x; \
@@ -26,14 +32,14 @@ install: $(ALL) Makefile
 		install -c -m 555 $$x $(DESTBIN)/$$x; \
 	done
 
-ttysrv: ttysrv.o ttyprot.o connutil.o
-	$(CC) -o ttysrv ttysrv.o ttyprot.o connutil.o
+ttysrv: ttysrv.o ttyprot.o connutil.o version.o
+	$(CC) -o ttysrv ttysrv.o ttyprot.o connutil.o version.o
 
-rtty: rtty.o ttyprot.o connutil.o
-	$(CC) -o rtty rtty.o ttyprot.o connutil.o
+rtty: rtty.o ttyprot.o connutil.o version.o
+	$(CC) -o rtty rtty.o ttyprot.o connutil.o version.o
 
-locbrok: locbrok.o
-	$(CC) -o locbrok locbrok.o
+locbrok: locbrok.o version.o
+	$(CC) -o locbrok locbrok.o version.o
 
 console: console.sh Makefile
 	sed -e 's:DESTPATH:$(DESTPATH):g' <$@.sh >$@
@@ -64,4 +70,12 @@ rtty.o: rtty.c ttyprot.h rtty.h
 ttyprot.o: ttyprot.c ttyprot.h rtty.h
 locbrok.o: locbrok.c locbrok.h rtty.h
 connutil.o: connutil.c rtty.h
+version.o: version.c
 
+version.c: Makefile
+	( \
+	  echo "#ifndef LINT"; \
+	  echo "char Version[] ="; \
+	  echo '"Version $(VERSION) ('`whoami`'@'`hostname`' '`date`')";'; \
+	  echo "#endif"; \
+	) >version.c
