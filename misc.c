@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: misc.c,v 1.6 1996-08-23 22:25:25 vixie Exp $";
+static char RCSid[] = "$Id: misc.c,v 1.7 2001-03-24 21:14:27 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -23,6 +23,9 @@ static char RCSid[] = "$Id: misc.c,v 1.6 1996-08-23 22:25:25 vixie Exp $";
  */
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/file.h>
 
 #include <netinet/in.h>
 
@@ -32,29 +35,20 @@ static char RCSid[] = "$Id: misc.c,v 1.6 1996-08-23 22:25:25 vixie Exp $";
 #include <termios.h>
 
 #include "rtty.h"
+#include "misc.h"
+#include "ttyprot.h"
 #ifdef NEED_BITYPES_H
 # include "bitypes.h"
 #endif
-#include "ttyprot.h"
 
-#ifdef USE_STDLIB
-# include <stdlib.h>
-#else
-extern	void		*calloc __P((size_t, size_t)),
-			*malloc __P((size_t)),
-			*realloc __P((void *, size_t));
-#endif
+#include <stdlib.h>
 
 #if DEBUG
 extern	int		Debug;
 #endif
 
 void
-cat_v(file, buf, nchars)
-	FILE *file;
-	u_char *buf;
-	int nchars;
-{
+cat_v(FILE *file, const u_char *buf, int nchars) {
 	while (nchars-- > 0) {
 		int c = *buf++;
 
@@ -70,10 +64,7 @@ cat_v(file, buf, nchars)
 }
 
 int
-install_ttyios(tty, ios)
-	int tty;
-	const struct termios *ios;
-{
+install_ttyios(int tty, const struct termios *ios) {
 #ifdef DEBUG
 	if (Debug) {
 		fprintf(stderr,
@@ -91,23 +82,41 @@ install_ttyios(tty, ios)
 }
 
 void
-prepare_term(ios)
-	struct termios *ios;
-{
+prepare_term(struct termios *ios, cc_t vmin) {
 	ios->c_cflag |= HUPCL|CLOCAL|CREAD|TAUTOFLOW|CS8;
 	ios->c_lflag |= NOFLSH;
 	ios->c_lflag &= ~(ICANON|TOSTOP|ECHO|ECHOE|ECHOK|ECHONL|IEXTEN|ISIG);
 	ios->c_iflag &= ~(IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK|ISTRIP
 			  |INLCR|IGNCR|ICRNL|IXON|IXOFF);
 	ios->c_oflag &= ~OPOST;
-	ios->c_cc[VMIN] = 0;
+	ios->c_cc[VMIN] = vmin;
 	ios->c_cc[VTIME] = 0;
 }
 
+int
+tty_nonblock(int tty, int nonblock) {
+	int old, new;
+
+	old = fcntl(tty, F_GETFL, 0);
+	if (old == -1) {
+		perror("fcntl(F_GETFL)");
+		exit(1);
+	}
+	if (nonblock)
+		new = old|O_NONBLOCK;
+	else
+		new = old & ~O_NONBLOCK;
+	if (new != old) {
+		if (fcntl(tty, F_SETFL, new) == -1) {
+			perror("fcntl(F_SETFL)");
+			exit(1);
+		}
+	}
+	return ((old & O_NONBLOCK) != 0);
+}
+
 void *
-safe_malloc(size)
-	size_t size;
-{
+safe_malloc(size_t size) {
 	void *ret = malloc(size);
 
 	if (!ret) {
@@ -118,9 +127,7 @@ safe_malloc(size)
 }
 
 void *
-safe_calloc(n, size)
-	size_t n, size;
-{
+safe_calloc(size_t n, size_t size) {
 	void *ret = calloc(n, size);
 
 	if (!ret) {
@@ -131,10 +138,7 @@ safe_calloc(n, size)
 }
 
 void *
-safe_realloc(ptr, size)
-	void *ptr;
-	size_t size;
-{
+safe_realloc(void *ptr, size_t size) {
 	void *ret = realloc(ptr, size);
 
 	if (!ret) {
@@ -144,14 +148,23 @@ safe_realloc(ptr, size)
 	return (ret);
 }
 
+char *
+safe_strdup(const char *str) {
+	char *new = strdup(str);
+
+	if (new == NULL) {
+		perror("strdup");
+		exit(1);
+	}
+	return (new);
+}
+
 #ifndef isnumber
 /*
  * from libvixutil.a (14may94 version)
  */
 int
-isnumber(s)
-	const char *s;
-{
+isnumber(const char *s) {
 	char ch;
 	int n;
 
@@ -165,23 +178,8 @@ isnumber(s)
 }
 #endif
 
-#ifdef NEED_STRDUP
-char *
-strdup(s)
-	const char *s;
-{
-	char *ret = (char *) safe_malloc(strlen(s) + 1);
-
-	strcpy(ret, s);
-	return (ret);
-}
-#endif
-
 #ifdef NEED_INET_ATON
-int inet_aton(cp, addr)
-	const char *cp;
-	struct in_addr *addr;
-{
+int inet_aton(const char *cp, struct in_addr *addr) {
 	u_int32_t v;
 
 	if ((v = inet_addr(cp)) > 0) {

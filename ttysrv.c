@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.16 1997-08-22 20:11:54 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.17 2001-03-24 21:14:32 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -39,8 +39,10 @@ static char RCSid[] = "$Id: ttysrv.c,v 1.16 1997-08-22 20:11:54 vixie Exp $";
 #include <signal.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <unistd.h>
 
 #if defined(DEBUG) && !defined(dprintf)
 #define dprintf if (Debug) lprintf
@@ -49,9 +51,7 @@ static char RCSid[] = "$Id: ttysrv.c,v 1.16 1997-08-22 20:11:54 vixie Exp $";
 #endif
 
 #include "rtty.h"
-#ifdef NEED_BITYPES_H
-# include "bitypes.h"
-#endif
+#include "misc.h"
 #include "ttyprot.h"
 #ifdef WANT_TCPIP
 # include "locbrok.h"
@@ -69,30 +69,14 @@ struct whoson {
 #define USAGE_STR "{-o option} [-s LServ|-r RServ] [-l Log]\n\
 	-t Tty [-b Baud] [-p Parity] [-w Wordsize] [-i Pidfile]"
 
-#ifdef USE_STDLIB
-#include <stdlib.h>
-#else
-extern	void		free __P((void *));
-#endif
-
-#ifdef USE_UNISTD
-#include <unistd.h>
-#else
-extern	int		gethostname __P((char *, int));
-extern	char		*crypt __P((const char *key, const char *setting));
-#endif
-
-extern	int		optind, opterr,
-			getopt __P((int, char * const *, const char *));
-extern	char		*optarg;
 
 #ifdef DEBUG
 int			Debug = 0;
 #endif
 
-extern	int		rconnect __P((char *host, char *service,
-				      FILE *verbose, FILE *errors,
-				      int timeout));
+extern	int		rconnect(char *host, char *service,
+				 FILE *verbose, FILE *errors,
+				 int timeout);
 extern	char		Version[];
 
 static	char		*ProgName = "amnesia",
@@ -111,9 +95,13 @@ static	int		LServ = -1,
 			Baud = 9600,
 			Wordsize = 8,
 			highest_fd = -1,
+#ifdef WANT_TCPIP
 			LocBrok = -1,
+#endif
 			Sigpiped = 0;
+#ifdef WANT_TCPIP
 static	u_int		Port;
+#endif
 static	struct termios	Ttyios, Ttyios_orig;
 static	FILE		*LogF = NULL;
 static	fd_set		Clients;
@@ -125,32 +113,29 @@ static	struct timeval	TOinput = {0, 3000};	/* 3ms: >1byte @9600baud */
 static	struct timeval	TOflush = {1, 0};	/* 1 second */
 static	struct whoson	**WhosOn;
 
-static	char		*handle_option __P((char *));
-static	void		main_loop __P((void)),
-			tty_input __P((int, int)),
-			broadcast __P((u_char *, int, u_int)),
-			sigpipe __P((int)),
-			sighup __P((int)),
-			open_log __P((void)),
-			quit __P((int)),
-			serv_input __P((int)),
-			client_input __P((int)),
-			close_client __P((int)),
-			set_parity __P((u_int)),
-			set_wordsize __P((u_int)),
-			auth_needed __P((int)),
-			auth_ok __P((int)),
-			lprintf __P((FILE *, const char *, ...));
+static	char		*handle_option(char *);
+static	void		main_loop(void),
+			tty_input(int, int),
+			broadcast(u_char *, int, u_int),
+			sigpipe(int),
+			sighup(int),
+			open_log(void),
+			quit(int),
+			serv_input(int),
+			client_input(int),
+			close_client(int),
+			set_parity(u_int),
+			set_wordsize(u_int),
+			auth_needed(int),
+			auth_ok(int),
+			lprintf(FILE *, const char *, ...);
 
-static	int		set_baud __P((int)),
-			find_parity __P((char *)),
-			find_wordsize __P((int));
+static	int		set_baud(int),
+			find_parity(char *),
+			find_wordsize(int);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
-{
+main(int argc, char *argv[]) {
 	int i;
 	char ch, *msg;
 
@@ -215,7 +200,7 @@ main(argc, argv)
 	dprintf(stderr, "main: tty open on fd%d\n", Tty);
 	tcgetattr(Tty, &Ttyios);
 	Ttyios_orig = Ttyios;
-	prepare_term(&Ttyios);
+	prepare_term(&Ttyios, 0);
 	set_baud(Baud);
 
 	if ((i = find_parity(Parity)) == -1) {
@@ -301,9 +286,8 @@ main(argc, argv)
 	}
 #endif
 
-	if (LogSpec) {
+	if (LogSpec)
 		open_log();
-	}
 
 	if (PidFile) {
 		FILE *f = fopen(PidFile, "w");
@@ -319,11 +303,11 @@ main(argc, argv)
 					   sizeof(struct whoson **));
 
 	main_loop();
+	exit(0);
 }
 
 static void
-main_loop()
-{
+main_loop(void) {
 	if (LServ != -1)
 		listen(LServ, 10);
 	if (RServ != -1)
@@ -379,10 +363,11 @@ main_loop()
 			}
 		}
 	}
+	/*NOTREACHED*/
 }
 
 static void
-tty_input(fd, aggregate) {
+tty_input(int fd, int aggregate) {
 	u_char buf[TP_MAXVAR];
 	int nchars, x, nloops;
 
@@ -421,11 +406,7 @@ tty_input(fd, aggregate) {
 }
 
 static void
-broadcast(buf, nchars, typ)
-	u_char *buf;
-	int nchars;
-	u_int typ;
-{
+broadcast(u_char *buf, int nchars, u_int typ) {
 	int fd, x;
 
 	for (fd = 0;  fd <= highest_fd;  fd++) {
@@ -447,7 +428,7 @@ broadcast(buf, nchars, typ)
 }
 
 static void
-serv_input(fd) {
+serv_input(int fd) {
 	struct sockaddr_un un;
 	struct sockaddr_in in;
 	struct sockaddr *sa;
@@ -473,9 +454,6 @@ serv_input(fd) {
 
 	dprintf(stderr, "serv_input: accepted fd%d\n", fd);
 
-#if 0
-	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0)|O_NONBLOCK);
-#endif
 	FD_SET(fd, &Clients);
 	if (fd > highest_fd) {
 		highest_fd = fd;
@@ -487,7 +465,7 @@ serv_input(fd) {
 	WhosOn[fd]->lastInput = Now;
 	WhosOn[fd]->auth = NULL;
 	if (sa == (struct sockaddr *) &un) {
-		WhosOn[fd]->host = strdup(Hostname);
+		WhosOn[fd]->host = safe_strdup(Hostname);
 		WhosOn[fd]->type = local;
 		auth_ok(fd);
 	} else if (sa == (struct sockaddr *) &in) {
@@ -496,9 +474,9 @@ serv_input(fd) {
 		hp = gethostbyaddr((char *)&in.sin_addr,
 				   sizeof(in.sin_addr),
 				   in.sin_family);
-		WhosOn[fd]->host = strdup(hp
-					  ? hp->h_name
-					  : inet_ntoa(in.sin_addr));
+		WhosOn[fd]->host = safe_strdup(hp
+					       ? hp->h_name
+					       : inet_ntoa(in.sin_addr));
 		WhosOn[fd]->type = remote;
 		auth_needed(fd);
 	} else {
@@ -636,7 +614,7 @@ client_input(int fd) {
 		} else {
 			Wordsize = i;
 			set_wordsize(new);
-			install_ttyios(&Tty, &Ttyios);
+			install_ttyios(Tty, &Ttyios);
 			if (LogF) {
 				fprintf(LogF, "[wordsize now %d]", i);
 			}
@@ -676,7 +654,7 @@ client_input(int fd) {
 		if (WhosOn[fd]) {
 			if (WhosOn[fd]->who)
 				free(WhosOn[fd]->who);
-			WhosOn[fd]->who = strdup((char *)T.c);
+			WhosOn[fd]->who = safe_strdup((char *)T.c);
 		}
 		{ /*local*/
 			char buf[TP_MAXVAR];
@@ -746,7 +724,7 @@ client_input(int fd) {
 			auth_ok(fd);
 		} else {
 			WhosOn[fd]->state = wpasswd;
-			WhosOn[fd]->auth = strdup(pw->pw_passwd);
+			WhosOn[fd]->auth = safe_strdup(pw->pw_passwd);
 			salt = WhosOn[fd]->auth[0]<<8 | WhosOn[fd]->auth[1];
 			tp_sendctl(fd, TP_PASSWD|TP_QUERY, salt, NULL);
 		}
@@ -784,9 +762,7 @@ client_input(int fd) {
 }
 
 static void
-close_client(fd)
-	int fd;
-{
+close_client(int fd) {
 	dprintf(stderr, "close_client: fd%d\n", fd);
 	close(fd);
 	FD_CLR(fd, &Clients);
@@ -822,18 +798,16 @@ struct cstab { int wordsize, syswordsize; } cstab[] = {
 };
 
 static int
-set_baud(baud) {
+set_baud(int baud) {
 	if (cfsetispeed(&Ttyios, baud) < 0)
 		return -1;
 	if (cfsetospeed(&Ttyios, baud) < 0)
 		return -1;
-	return 0;
+	return (0);
 }
 
 static int
-find_parity(parity)
-	char *parity;
-{
+find_parity(char *parity) {
 	struct partab *parp;
 	int sysparity = -1;
 
@@ -842,19 +816,17 @@ find_parity(parity)
 			sysparity = parp->sysparity;
 		}
 	}
-	return sysparity;
+	return (sysparity);
 }
 
 static void
-set_parity(parity)
-	u_int parity;
-{
+set_parity(u_int parity) {
 	Ttyios.c_cflag &= ~(PARENB|PARODD);
 	Ttyios.c_cflag |= parity;
 }
 
 static int
-find_wordsize(wordsize) {
+find_wordsize(int wordsize) {
 	struct cstab *csp;
 	int syswordsize = -1;
 
@@ -862,31 +834,27 @@ find_wordsize(wordsize) {
 		if (csp->wordsize == wordsize)
 			syswordsize = csp->syswordsize;
 	}
-	return syswordsize;
+	return (syswordsize);
 }
 
 static void
-set_wordsize(wordsize)
-	u_int wordsize;
-{
+set_wordsize(u_int wordsize) {
 	Ttyios.c_cflag &= ~CSIZE;
 	Ttyios.c_cflag |= wordsize;
 }
 
 static char *
-handle_option(option)
-	char *option;
-{
+handle_option(char *option) {
 	if (!strcmp("nolocal", option)) {
 		Ttyios.c_cflag &= ~CLOCAL;
 	} else {
 		return "unrecognized";
 	}
-	return NULL;
+	return (NULL);
 }
 
 static void
-auth_needed(fd) {
+auth_needed(int fd) {
 	char data[TP_MAXVAR];
 
 	sprintf(data, "authorization needed");
@@ -896,7 +864,7 @@ auth_needed(fd) {
 }
 
 static void
-auth_ok(fd) {
+auth_ok(int fd) {
 	char data[TP_MAXVAR];
 
 	sprintf(data, "authorized");
@@ -905,12 +873,12 @@ auth_ok(fd) {
 }
 
 static void
-sigpipe(x) {
+sigpipe(int x) {
 	Sigpiped++;
 }
 
 static void
-sighup(x) {
+sighup(int x) {
 	if (LogF) {
 		fclose(LogF);
 		LogF = NULL;
@@ -920,7 +888,7 @@ sighup(x) {
 }
 
 static void
-open_log() {
+open_log(void) {
 	if (!(LogF = fopen(LogSpec, "a+"))) {
 		perror(LogSpec);
 		fprintf(stderr, "%s: can't open log file\n", ProgName);
@@ -928,13 +896,14 @@ open_log() {
 }
 
 static void
-quit(x) {
+quit(int x) {
 	dprintf(stderr, "\r\nttysrv exiting\r\n");
 	if (Ttyios_set && (Tty != -1))
 		(void) install_ttyios(Tty, &Ttyios_orig);
 	exit(0);
 }
 
+#ifdef DEBUG
 static void
 lprintf(FILE *fp, const char *fmt, ...) {
 	va_list ap;
@@ -948,7 +917,8 @@ lprintf(FILE *fp, const char *fmt, ...) {
 	tmnow = localtime(&now);
 	fprintf(fp, "%02d:%02d:%02d.%03d ",
 		tmnow->tm_hour, tmnow->tm_min, tmnow->tm_sec,
-		tvnow.tv_usec / 1000);
+		(int) (tvnow.tv_usec / 1000));
 	vfprintf(fp, fmt, ap);
 	va_end(ap);
 }
+#endif

@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.15 2000-07-29 01:33:20 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.16 2001-03-24 21:14:28 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -31,42 +31,31 @@ static char RCSid[] = "$Id: rtty.c,v 1.15 2000-07-29 01:33:20 vixie Exp $";
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pwd.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include "rtty.h"
-#ifdef NEED_BITYPES_H
-# include "bitypes.h"
-#endif
+#include "misc.h"
 #include "ttyprot.h"
 #ifdef WANT_TCPIP
 # include "locbrok.h"
 #endif
 
+#define LOCAL_DEBUG 0
+
 #define USAGE_STR \
 	"[-s ServSpec] [-l LoginName] [-7] [-r] [-x DebugLevel] Serv"
-
-#ifdef USE_UNISTD
-#include <unistd.h>
-#else
-#define	STDIN_FILENO	0
-#define	STDOUT_FILENO	1
-extern	char		*getlogin __P((void)),
-			*ttyname __P((int));
-#endif
-
-extern	int		optind, opterr,
-			getopt __P((int, char * const *, const char *));
-extern	char		*optarg;
 
 #define Tty STDIN_FILENO
 
 ttyprot T;
 
-extern	int		rconnect __P((char *host, char *service,
-				      FILE *verbose, FILE *errors,
-				      int timeout));
+extern	int		rconnect(char *host, char *service,
+				 FILE *verbose, FILE *errors,
+				 int timeout);
 extern	char		Version[];
 
 static	char		*ProgName = "amnesia",
@@ -85,23 +74,21 @@ static	int		Serv = -1,
 static	struct termios	Ttyios, Ttyios_orig;
 static	fd_set		fds;
 
-static	void		main_loop __P((void)),
-			tty_input __P((int)),
-			query_or_set __P((int)),
-			logging __P((void)),
-			serv_input __P((int)),
-			server_replied __P((char *, int)),
-			server_died __P((void)),
-			quit __P((int));
+static	void		main_loop(void),
+			tty_input(int),
+			query_or_set(int, int),
+			logging(int),
+			serv_input(int),
+			server_replied(char *, int),
+			server_died(void),
+			quit(int);
 
 #ifdef DEBUG
 int Debug = 0;
 #endif
 
-main(argc, argv)
-	int argc;
-	char *argv[];
-{
+int
+main(int argc, char *argv[]) {
 	char ch;
 
 	ProgName = argv[0];
@@ -162,8 +149,8 @@ main(argc, argv)
 		       n.sun_path);
 		dprintf(stderr, "rtty.main: connected on fd%d\r\n", Serv);
 		fprintf(stderr, "connected\n");
-#ifdef WANT_TCPIP
 	} else {
+#ifdef WANT_TCPIP
 		int loc, len;
 		locbrok lb;
 		char buf[10];
@@ -195,28 +182,28 @@ main(argc, argv)
 		sprintf(buf, "%d", lb.lb_port);
 		Serv = rconnect(cp, buf, NULL,stderr,30);
 		ASSERT(Serv >= 0, "rconnect rtty");
+#else
+		USAGE((stderr, "service must begin with a '/'\n"));
 #endif /*WANT_TCPIP*/
 	}
 
-	{
-		tcgetattr(Tty, &Ttyios);
-		Ttyios_orig = Ttyios;
-		prepare_term(&Ttyios);
-		signal(SIGINT, quit);
-		signal(SIGQUIT, quit);
-		install_ttyios(Tty, &Ttyios);
-		Ttyios_set++;
-	}
+	tcgetattr(Tty, &Ttyios);
+	Ttyios_orig = Ttyios;
+	prepare_term(&Ttyios, 1);
+	signal(SIGINT, quit);
+	signal(SIGQUIT, quit);
+	install_ttyios(Tty, &Ttyios);
+	Ttyios_set++;
 
 	fprintf(stderr,
 		"(use (CR)~? for minimal help; also (CR)~q? and (CR)~s?)\r\n");
 	tp_sendctl(Serv, TP_WHOSON, strlen(WhoAmI), (u_char*)WhoAmI);
 	main_loop();
+	exit(0);
 }
 
 static void
-main_loop()
-{
+main_loop(void) {
 	FD_ZERO(&fds);
 	FD_SET(Serv, &fds);
 	FD_SET(STDIN_FILENO, &fds);
@@ -228,54 +215,35 @@ main_loop()
 
 		readfds = fds;
 		exceptfds = fds;
-#if 0
-		dprintf(stderr, "rtty.main_loop: select(%d,%08x)\r\n",
-			highest_fd+1, readfds.fds_bits[0]);
-#endif
 		nfound = select(highest_fd+1, &readfds, NULL,
 				&exceptfds, NULL);
 		if (nfound < 0 && errno == EINTR)
 			continue;
 		ASSERT(0<=nfound, "select");
-#if 0
-		dprintf(stderr, "ttysrv.main_loop: select->%d\r\n", nfound);
-#endif
 		for (fd = 0; fd <= highest_fd; fd++) {
 			if (FD_ISSET(fd, &exceptfds)) {
-#if 0
-				dprintf(stderr,
-					"rtty.main_loop: fd%d exceptional\r\n",
-					fd);
-#endif
-				if (fd == Serv) {
+				if (fd == Serv)
 					server_died();
-				}
 			}
 			if (FD_ISSET(fd, &readfds)) {
-#if 0
-				dprintf(stderr,
-					"rtty.main_loop: fd%d readable\r\n",
-					fd);
-#endif
-				if (fd == STDIN_FILENO) {
+				if (fd == STDIN_FILENO)
 					tty_input(fd);
-				} else if (fd == Serv) {
+				else if (fd == Serv)
 					serv_input(fd);
-				}
 			}
 		}
 	}
+	/*NOTREACHED*/
 }
 
 static void
-tty_input(fd) {
+tty_input(int fd) {
 	static enum {base, need_cr, tilde} state = base;
 	u_char buf[1];
+	int n, save_nonblock;
 
-#if 0
-	fcntl(Tty, F_SETFL, fcntl(Tty, F_GETFL, 0)|O_NONBLOCK);
-#endif
-	while (1 == read(fd, buf, 1)) {
+	save_nonblock = tty_nonblock(fd, 1);
+	while ((n = read(fd, buf, 1)) == 1) {
 		u_char ch = buf[0];
 
 		switch (state) {
@@ -312,28 +280,29 @@ tty_input(fd) {
 			case '~': /* ~~ - write one ~, which is in buf[] */
 				break;
 			case '.': /* ~. - quitsville */
+				(void) tty_nonblock(fd, 0);
 				quit(0);
 				/* FALLTHROUGH */
 			case 'L'-'@': /* ~^L - start logging */
 				if (Restricted)
 					goto passthrough;
-				install_ttyios(Tty, &Ttyios_orig);
-				logging();
-				install_ttyios(Tty, &Ttyios);
+				install_ttyios(fd, &Ttyios_orig);
+				logging(fd);
+				install_ttyios(fd, &Ttyios);
 				continue;
 			case 'Z'-'@': /* ~^Z - suspend yourself */
 				if (Restricted)
 					goto passthrough;
-				install_ttyios(Tty, &Ttyios_orig);
+				install_ttyios(fd, &Ttyios_orig);
 				kill(getpid(), SIGTSTP);
-				install_ttyios(Tty, &Ttyios);
+				install_ttyios(fd, &Ttyios);
 				continue;
 			case 'q': /* ~q - query server */
 				/*FALLTHROUGH*/
 			case 's': /* ~s - set option */
 				if (Restricted)
 					goto passthrough;
-				query_or_set(ch);
+				query_or_set(fd, ch);
 				continue;
 			case '#': /* ~# - send break */
 				tp_sendctl(Serv, TP_BREAK, 0, NULL);
@@ -361,18 +330,15 @@ tty_input(fd) {
 			write(Log, buf, 1);
 		}
 	}
-#if 0
-	fcntl(Tty, F_SETFL, fcntl(Tty, F_GETFL, 0)&~O_NONBLOCK);
-#endif
+	(void) tty_nonblock(fd, save_nonblock);
+	if (n == 0)
+		quit(0);
 }
 
 static void
-query_or_set(ch)
-	int ch;
-{
-	cc_t vmin;
+query_or_set(int fd, int ch) {
+	int set, new, save_nonblock;
 	char buf[64];
-	int set, new;
 
 	switch (ch) {
 	case 'q':
@@ -387,11 +353,9 @@ query_or_set(ch)
 	}
 
 	fputs(set ?"~set " :"~query ", stderr);
-	vmin = Ttyios.c_cc[VMIN];
-	Ttyios.c_cc[VMIN] = 1;
-	install_ttyios(Tty, &Ttyios);
+	save_nonblock = tty_nonblock(fd, 0);
 
-	switch (read(Tty, buf, 1)) {
+	switch (read(fd, buf, 1)) {
 	case -1:
 		perror("read");
 		goto done;
@@ -417,7 +381,7 @@ query_or_set(ch)
 			fputs("\07\r\n", stderr);
 		} else {
 			fputs("baud ", stderr);
-			install_ttyios(Tty, &Ttyios_orig);
+			install_ttyios(fd, &Ttyios_orig);
 			fgets(buf, sizeof buf, stdin);
 			if (buf[strlen(buf)-1] == '\n') {
 				buf[strlen(buf)-1] = '\0';
@@ -433,7 +397,7 @@ query_or_set(ch)
 			fputs("\07\r\n", stderr);
 		} else {
 			fputs("parity ", stderr);
-			install_ttyios(Tty, &Ttyios_orig);
+			install_ttyios(fd, &Ttyios_orig);
 			fgets(buf, sizeof buf, stdin);
 			if (buf[strlen(buf)-1] == '\n') {
 				buf[strlen(buf)-1] = '\0';
@@ -447,7 +411,7 @@ query_or_set(ch)
 			fputs("\07\r\n", stderr);
 		} else {
 			fputs("wordsize ", stderr);
-			install_ttyios(Tty, &Ttyios_orig);
+			install_ttyios(fd, &Ttyios_orig);
 			fgets(buf, sizeof buf, stdin);
 			if (!(new = atoi(buf))) {
 				break;
@@ -489,36 +453,36 @@ query_or_set(ch)
 		break;
 	}
  done:
-	Ttyios.c_cc[VMIN] = vmin;
-	install_ttyios(Tty, &Ttyios);
+	(void) tty_nonblock(fd, save_nonblock);
+	return;
 }
 
 static void
-logging() {
+logging(int fd) {
 	if (Log == -1) {
+		int save_nonblock = tty_nonblock(fd, 0);
+
 		printf("\r\nLog file is: "); fflush(stdout);
 		fgets(LogSpec, sizeof LogSpec, stdin);
-		if (LogSpec[strlen(LogSpec)-1] == '\n') {
+		if (LogSpec[strlen(LogSpec) - 1] == '\n')
 			LogSpec[strlen(LogSpec)-1] = '\0';
-		}
 		if (LogSpec[0]) {
 			Log = open(LogSpec, O_CREAT|O_APPEND|O_WRONLY, 0640);
-			if (Log == -1) {
+			if (Log == -1)
 				perror(LogSpec);
-			}
 		}
+		(void) tty_nonblock(fd, save_nonblock);
 	} else {
-		if (0 > close(Log)) {
+		if (0 > close(Log))
 			perror(LogSpec);
-		} else {
+		else
 			printf("\n[%s closed]\n", LogSpec);
-		}
 		Log = -1;
 	}
 }
 
 static void
-serv_input(fd) {
+serv_input(int fd) {
 	char passwd[TP_MAXVAR], s[3], *c, *crypt();
 	int nchars, i;
 	u_int f, o, t;
@@ -544,16 +508,14 @@ serv_input(fd) {
 		if (SevenBit) {
 			int i;
 
-			for (i = 0;  i < nchars;  i++) {
+			for (i = 0; i < nchars; i++)
 				T.c[i] &= 0x7f;
-			}
 		}
 		switch (t) {
 		case TP_DATA:
 			write(STDOUT_FILENO, T.c, nchars);
-			if (Log != -1) {
+			if (Log != -1)
 				write(Log, T.c, nchars);
-			}
 			break;
 		case TP_NOTICE:
 			write(STDOUT_FILENO, "[", 1);
@@ -570,14 +532,13 @@ serv_input(fd) {
 		}
 		break;
 	case TP_BAUD:
-		if (o & TP_QUERY) {
+		if ((o & TP_QUERY) != 0)
 			fprintf(stderr, "[baud %d]\r\n", i);
-		} else {
+		else
 			server_replied("baud rate change", i);
-		}
 		break;
 	case TP_PARITY:
-		if (o & TP_QUERY) {
+		if ((o & TP_QUERY) != 0) {
 			if (i != (nchars = read(fd, T.c, i))) {
 				server_died();
 			}
@@ -588,22 +549,19 @@ serv_input(fd) {
 		}
 		break;
 	case TP_WORDSIZE:
-		if (o & TP_QUERY) {
+		if ((o & TP_QUERY) != 0)
 			fprintf(stderr, "[wordsize %d]\r\n", i);
-		} else {
+		else
 			server_replied("wordsize change", i);
-		}
 		break;
 	case TP_LOGIN:
-		if (!(o & TP_QUERY)) {
+		if ((o & TP_QUERY) == 0)
 			break;
-		}
 		tp_sendctl(Serv, TP_LOGIN, strlen(Login), (u_char*)Login);
 		break;
 	case TP_PASSWD:
-		if (!(o & TP_QUERY)) {
+		if ((o & TP_QUERY) == 0)
 			break;
-		}
 		fputs("Password:", stderr); fflush(stderr);
 		for (c = passwd;  c < &passwd[sizeof passwd];  c++) {
 			fd_set infd;
@@ -629,26 +587,20 @@ serv_input(fd) {
 }
 
 static void
-server_replied(msg, i)
-	char *msg;
-	int i;
-{
-	fprintf(stderr, "[%s %s]\r\n",
-		msg,
-		i ?"accepted" :"rejected");
+server_replied(char *msg, int i) {
+	fprintf(stderr, "[%s %s]\r\n", msg, i ? "accepted" : "rejected");
 }
 
 static void
-server_died() {
+server_died(void) {
 	fprintf(stderr, "\r\n[server disconnect]\r\n");
 	quit(0);
 }
 
 static void
-quit(x) {
+quit(int x) {
 	fprintf(stderr, "\r\n[rtty exiting]\r\n");
-	if (Ttyios_set) {
+	if (Ttyios_set)
 		install_ttyios(Tty, &Ttyios_orig);
-	}
 	exit(0);
 }

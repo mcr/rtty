@@ -1,7 +1,7 @@
 /* ttyproto.h - define protocol used by ttysrv and its clients
  * vix 29may91 [written]
  *
- * $Id: ttyprot.h,v 1.8 1996-08-23 22:25:25 vixie Exp $
+ * $Id: ttyprot.h,v 1.9 2001-03-24 21:14:31 vixie Exp $
  */
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -21,6 +21,9 @@
  */
 
 #include <termios.h>
+#ifdef NEED_BITYPES_H
+# include "bitypes.h"
+#endif
 
 #define TP_TYPEMASK	0x00ff
 #define	TP_DATA		0x0001	/* inband data (query=ignored) */
@@ -47,10 +50,6 @@ typedef struct ttyprot {
 	u_char		c[TP_MAXVAR];
 } ttyprot;
 
-int tp_senddata __P((int, u_char *, int, int));
-int tp_sendctl __P((int, u_int, u_int, u_char *));
-int tp_getdata __P((int, ttyprot *));
-void cat_v __P((FILE *, u_char *, int));
-char *strsave __P((char *));
-int install_termios __P((int, struct termios *));
-void prepare_term __P((struct termios *));
+int tp_senddata(int, const u_char *, int, int);
+int tp_sendctl(int, u_int, u_int, u_char *);
+int tp_getdata(int, ttyprot *);

@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.8 1996-08-23 22:25:25 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.9 2001-03-24 21:14:26 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -36,25 +36,18 @@ int Debug = 0;
 #include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "rtty.h"
+#include "misc.h"
 #include "locbrok.h"
 
 #define USAGE_STR "[-s service] [-x debuglev]"
 
-#ifdef USE_STDLIB
-#include <stdlib.h>
-#else
-extern	void		free __P((void *));
-#endif
-
-extern	int		optind, opterr,
-			getopt __P((int, char * const *, const char *));
-extern	char		*optarg;
-
 	/* misc.c */
 #ifndef isnumber
-extern	int		isnumber __P((char *));
+extern	int		isnumber(char *);
 #endif
 
 typedef struct reg_db {
@@ -64,15 +57,15 @@ typedef struct reg_db {
 	struct reg_db *next;
 } reg_db;
 
-static	reg_db		*find_byname __P((char *name)),
-			*find_byport __P((u_int port));
+static	reg_db		*find_byname(char *name),
+			*find_byport(u_int port);
 
-static	int		add __P((char *name, u_int port, u_int client));
+static	int		add(char *name, u_int port, u_int client);
 
-static	void		server __P((void)),
-			client_input __P((int fd)),
-			rm_byclient __P((u_int client)),
-			print __P((void));
+static	void		server(void),
+			client_input(int fd),
+			rm_byclient(u_int client),
+			print(void);
 
 static	char		*ProgName = "amnesia",
 			*Service = LB_SERVNAME;
@@ -81,10 +74,7 @@ static	int		Port,
 static	fd_set		Clients;
 static	reg_db		*RegDB = NULL;
 
-main(argc, argv)
-	int argc;
-	char *argv[];
-{
+main(int argc, char *argv[]) {
 	struct servent *serv;
 	char ch;
 
@@ -119,7 +109,7 @@ main(argc, argv)
 }
 
 static void
-server() {
+server(void) {
 	int serv, on = 1;
 	struct sockaddr_in name;
 
@@ -181,9 +171,7 @@ server() {
 }
 
 static void
-client_input(fd)
-	int fd;
-{
+client_input(int fd) {
 	locbrok	lb;
 	reg_db *db;
 	int keepalive = 0;
@@ -236,9 +224,7 @@ client_input(fd)
 }
 
 static reg_db *
-find_byname(name)
-	char *name;
-{
+find_byname(const char *name) {
 	reg_db *db;
 
 	for (db = RegDB;  db;  db = db->next)
@@ -248,9 +234,7 @@ find_byname(name)
 }
 
 static reg_db *
-find_byport(port)
-	u_int port;
-{
+find_byport(u_int port) {
 	reg_db *db;
 
 	for (db = RegDB;  db;  db = db->next)
@@ -260,11 +244,7 @@ find_byport(port)
 }
 
 static int
-add(name, port, client)
-	char *name;
-	u_int port;
-	u_int client;
-{
+add(const char *name, u_int port, u_int client) {
 	reg_db *db;
 
 	if (find_byname(name) || find_byport(port))
@@ -280,9 +260,7 @@ add(name, port, client)
 }
 
 static void
-rm_byclient(client)
-	u_int client;
-{
+rm_byclient(u_int client) {
 	reg_db *cur = RegDB, *prev = NULL;
 
 	while (cur) {
@@ -305,7 +283,7 @@ rm_byclient(client)
 }
 
 static void
-print() {
+print(void) {
 	reg_db *db;
 
 	fprintf(stderr, "db:\n");
@@ -319,7 +297,8 @@ print() {
 
 #include <stdio.h>
 
-main() {
+int
+main(int argc, char *argv[]) {
 	fprintf(stderr, "There is no location broker for this system.\n");
 	exit(1);
 }

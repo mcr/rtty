@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: connutil.c,v 1.8 1996-08-23 22:25:25 vixie Exp $";
+static char RCSid[] = "$Id: connutil.c,v 1.9 2001-03-24 21:14:25 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -37,6 +37,7 @@ static char RCSid[] = "$Id: connutil.c,v 1.8 1996-08-23 22:25:25 vixie Exp $";
 #include <string.h>
 
 #include "rtty.h"
+#include "misc.h"
 
 extern	int		h_errno;
 extern	char		*ProgName;
@@ -44,13 +45,10 @@ extern	char		*ProgName;
 /* assume ip/tcp for now */
 
 static	jmp_buf		jmpalrm;
-static	void		sigalrm __P((int));
+static	void		sigalrm(int);
 
 static
-int doconnect(n, ns, to)
-	struct sockaddr_in *n;
-	int ns, to;
-{
+int doconnect(struct sockaddr_in *n, int ns, int to) {
 	int sock, ok, save;
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -69,7 +67,7 @@ int doconnect(n, ns, to)
 	}
 	ok = (connect(sock, (struct sockaddr *)n, ns) >= 0);
 	save = errno;
-finito:
+ finito:
 	if (to) {
 		alarm(0);
 		signal(SIGALRM, SIG_DFL);
@@ -84,12 +82,8 @@ finito:
 }
 
 int
-rconnect(host, service, verbose, errors, timeout)
-	char *host;
-	char *service;
-	FILE *verbose;
-	FILE *errors;
-	int timeout;
+rconnect(const char *host, const char *service,
+	 FILE *verbose, FILE *errors, int timeout)
 {
 	u_int32_t **hp;
 	struct hostent *h;
@@ -158,8 +152,7 @@ rconnect(host, service, verbose, errors, timeout)
 }
 
 static void
-sigalrm(x)
-{
+sigalrm(int x) {
 	longjmp(jmpalrm, 1);
 	/*NOTREACHED*/
 }

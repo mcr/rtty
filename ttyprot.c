@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttyprot.c,v 1.9 1996-08-23 22:25:25 vixie Exp $";
+static char RCSid[] = "$Id: ttyprot.c,v 1.10 2001-03-24 21:14:30 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -29,11 +29,10 @@ static char RCSid[] = "$Id: ttyprot.c,v 1.9 1996-08-23 22:25:25 vixie Exp $";
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include "rtty.h"
-#ifdef NEED_BITYPES_H
-# include "bitypes.h"
-#endif
+#include "misc.h"
 #include "ttyprot.h"
 
 #if DEBUG
@@ -41,13 +40,10 @@ extern	int		Debug;
 #endif
 
 int
-tp_senddata(fd, buf, len, typ)
-	int len, typ, fd;
-	u_char *buf;
-{
+tp_senddata(int fd, const u_char *buf, int len, int typ) {
 	struct iovec iov[2];
 	ttyprot t;
-	int i;
+	int n = 0;
 
 #if DEBUG
 	if (Debug >= 5) {
@@ -60,7 +56,8 @@ tp_senddata(fd, buf, len, typ)
 	iov[0].iov_base = (caddr_t)&t;
 	iov[0].iov_len = TP_FIXED;
 	while (len > 0) {
-		i = min(len, TP_MAXVAR);
+		int i = min(len, TP_MAXVAR);
+
 		t.i = htons(i);
 		iov[1].iov_base = (caddr_t)buf;
 		iov[1].iov_len = i;
@@ -69,16 +66,13 @@ tp_senddata(fd, buf, len, typ)
 		i = writev(fd, iov, 2);
 		if (i < 0)
 			break;
+		n += i;
 	}
-	return (i);
+	return (n);
 }
 
 int
-tp_sendctl(fd, f, i, c)
-	int fd;
-	u_int f, i;
-	u_char *c;
-{
+tp_sendctl(int fd, u_int f, u_int i, u_char *c) {
 	struct iovec iov[2];
 	ttyprot t;
 	int len = c ?min(strlen((char *)c), TP_MAXVAR) :0;
@@ -87,7 +81,7 @@ tp_sendctl(fd, f, i, c)
 #if DEBUG
 	if (Debug >= 5) {
 		fprintf(stderr, "tp_sendctl(fd=%d, f=%04x, i=%d, c=\"",
-			fd, f, i, c);
+			fd, f, i);
 		cat_v(stderr, c ?c :(u_char*)"", len);
 		fprintf(stderr, "\")\r\n");
 	}
@@ -106,14 +100,11 @@ tp_sendctl(fd, f, i, c)
 }
 
 int
-tp_getdata(fd, tp)
-	int fd;
-	ttyprot *tp;
-{
+tp_getdata(int fd, ttyprot *tp) {
 	int len = ntohs(tp->i);
 	int nchars;
 
-	if (len != (nchars = read(fd, tp->c, len))) {
+	if ((nchars = read(fd, tp->c, len)) != len) {
 		dprintf(stderr, "tp_getdata: read=%d(%d) fd%d: ",
 			nchars, len, fd);
 		if (nchars < 0)
