@@ -2,7 +2,7 @@ rtty -- multiuser "tip"/"cu" replacement with logging
 Paul Vixie <vixie@isc.org> -- 24-March-2001 [V4.0 released]
 Paul Vixie <paul@vix.com> -- 27-December-1993 [V3.0 released]
 Paul Vixie <vixie@pa.dec.com> -- 1-January-1992 [V2.0 released]
-$Id: README,v 1.9 2001-03-24 22:33:55 vixie Exp $
+$Id: README,v 1.10 2001-05-18 17:26:56 vixie Exp $
 
 4.0 Release Notes (24-March-2001)
 
@@ -25,7 +25,11 @@ way system routines were declared; the result also works fine on Ultrix 4.2
 and should work OK on any modern system, especially POSIX 1003.1 compatible
 systems.  I cleaned up the IP/TCP transport in case anyone wants to try it;
 in particular there is now a challenge/response for passwords (this used to be
-"wide open" which is why I always discouraged its use before.)
+"wide open" which is why I always discouraged its use before.)  NOTE: TCP/IP
+transport here is still utterly dangerous since it sends your whole session
+in clear text over the wire.  It's far better to ssh or krlogin into the rtty
+server and run "console" locally than to turn on WANT_TCPIP and use rtty over
+the network.  YOU HAVE BEEN WARNED.
 
 There are some things on my to-do list that I'd like someone else to work on:
    ->	public/private challenge/response, or kerberos, or both
@@ -56,7 +60,7 @@ Rtty is "remote tty" (not radioteletype).  You run a server per port
 and then connect to that server from any number of "tip"/"cu"-like
 clients.  I wrote it for our console concentrator, but there's no
 reason other than performance why you couldn't use it to drive modems,
-printers, prom programmers, and so on.
+printers, prom programmers, and so on.  It's 8-bit clean.
 
 When you connect to the server from more than one client, all clients
 will see the same session and all clients can type at and see output
