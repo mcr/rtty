@@ -3,10 +3,11 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.17 2001-03-25 05:41:16 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.18 2001-05-18 17:27:22 vixie Exp $";
 #endif
 
-/* Copyright (c) 1996 by Internet Software Consortium.
+/*
+ * Copyright (c) 1996,2001 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -93,18 +94,16 @@ main(int argc, char *argv[]) {
 
 	ProgName = argv[0];
 
-	if (!(Login = getlogin())) {
+	if ((Login = getlogin()) == NULL) {
 		struct passwd *pw = getpwuid(getuid());
 
-		if (pw) {
+		if (pw)
 			Login = pw->pw_name;
-		} else {
+		else
 			Login = "nobody";
-		}
 	}
-	if (!(TtyName = ttyname(STDIN_FILENO))) {
+	if ((TtyName = ttyname(STDIN_FILENO)) == NULL)
 		TtyName = "/dev/null";
-	}
 
 	while ((ch = getopt(argc, argv, "s:x:l:7r")) != EOF) {
 		switch (ch) {
@@ -130,7 +129,7 @@ main(int argc, char *argv[]) {
 		}
 	}
 
-	if (optind != argc-1) {
+	if (optind != (argc - 1)) {
 		USAGE((stderr, "must specify service\n"));
 	}
 	ServSpec = argv[optind++];
@@ -219,7 +218,7 @@ main_loop(void) {
 				&exceptfds, NULL);
 		if (nfound < 0 && errno == EINTR)
 			continue;
-		ASSERT(0<=nfound, "select");
+		ASSERT(0 <= nfound, "select");
 		for (fd = 0; fd <= highest_fd; fd++) {
 			if (FD_ISSET(fd, &exceptfds)) {
 				if (fd == Serv)
@@ -252,15 +251,13 @@ tty_input(int fd) {
 				state = tilde;
 				continue;
 			}
-			if (ch != '\r') {
+			if (ch != '\r')
 				state = need_cr;
-			}
 			break;
 		case need_cr:
 			/* \04 (^D) is a line terminator on some systems */
-			if (ch == '\r' || ch == '\04') {
+			if (ch == '\r' || ch == '\04')
 				state = base;
-			}
 			break;
 		case tilde:
 #define RESTRICTED_HELP_STR "\r\n\
@@ -297,11 +294,11 @@ tty_input(int fd) {
 				kill(getpid(), SIGTSTP);
 				install_ttyios(fd, &Ttyios);
 				continue;
-			case 'q': /* ~q - query server */
-				/*FALLTHROUGH*/
 			case 's': /* ~s - set option */
 				if (Restricted)
 					goto passthrough;
+				/*FALLTHROUGH*/
+			case 'q': /* ~q - query server */
 				query_or_set(fd, ch);
 				continue;
 			case '#': /* ~# - send break */
@@ -316,19 +313,16 @@ tty_input(int fd) {
 			default: /* ~mumble - write; `mumble' is in buf[] */
 				tp_senddata(Serv, (u_char *)"~", 1,
 					    TP_DATA);
-				if (Log != -1) {
+				if (Log != -1)
 					write(Log, "~", 1);
-				}
 				break;
 			}
 			break;
 		}
-		if (0 > tp_senddata(Serv, buf, 1, TP_DATA)) {
+		if (0 > tp_senddata(Serv, buf, 1, TP_DATA))
 			server_died();
-		}
-		if (Log != -1) {
+		if (Log != -1)
 			write(Log, buf, 1);
-		}
 	}
 	(void) tty_nonblock(fd, save_nonblock);
 	if (n == 0)
