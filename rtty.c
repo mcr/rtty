@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.21 2002-06-28 18:45:03 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.22 2002-06-28 19:08:09 vixie Exp $";
 #endif
 
 /*
@@ -298,8 +298,10 @@ tty_input(int fd) {
 				if (Restricted)
 					goto passthrough;
 				install_ttyios(fd, &Ttyios_orig);
+				(void) tty_nonblock(fd, 0);
 				kill(getpid(), SIGTSTP);
 				install_ttyios(fd, &Ttyios);
+				(void) tty_nonblock(fd, 1);
 				continue;
 			case 's': /* ~s - set option */
 				if (Restricted)
