@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.19 2002-02-28 02:31:46 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.20 2002-06-28 18:37:02 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -142,7 +142,7 @@ main(int argc, char *argv[]) {
 	gethostname(Hostname, sizeof Hostname);
 	ProgName = argv[0];
 
-	while ((ch = getopt(argc, argv, "s:r:t:l:b:p:w:x:i:R")) != EOF) {
+	while ((ch = getopt(argc, argv, "s:r:t:l:b:p:w:x:i:R")) != -1) {
 		switch (ch) {
 		case 's':
 			LServSpec = optarg;
