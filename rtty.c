@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: rtty.c,v 1.5 1992-09-10 23:30:52 vixie Exp $";
+static char RCSid[] = "$Id: rtty.c,v 1.6 1992-11-12 18:25:10 vixie Exp $";
 #endif
 
 #include <stdio.h>
@@ -32,6 +32,7 @@ ttyprot T;
 
 extern int optind, opterr;
 extern char *optarg;
+extern char Version[];
 
 char *ProgName, WhoAmI[TP_MAXVAR], Hostname[MAXHOSTNAMELEN];
 char *ServSpec = NULL;		int Serv;
@@ -372,12 +373,21 @@ query_or_set(ch)
 				tp_sendctl(Serv, TP_WHOSON|TP_QUERY, 0, NULL);
 			}
 			break;
+		case 'V':
+			if (set) {
+				fputs("\07\r\n", stderr);
+			} else {
+				fputs("Version\r\n", stderr);
+				tp_sendctl(Serv, TP_VERSION|TP_QUERY, 0, NULL);
+				fprintf(stderr, "[%s (client)]\r\n", Version);
+			}
+			break;
 		default:
 			if (set)
 				fputs("[all baud parity wordsize]\r\n",
 				      stderr);
 			else
-				fputs("[Whoson Tail]\r\n", stderr);
+				fputs("[all Whoson Tail Version]\r\n", stderr);
 			break;
 		}
 	}
