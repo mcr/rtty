@@ -18,7 +18,7 @@
 # (this is just a local copy to make sure it's available; master source for
 # this is elsewhere)
 #
-# $Id: agelog.sh,v 1.3 1996-08-23 22:25:25 vixie Exp $
+# $Id: agelog.sh,v 1.4 2005-04-25 15:47:42 vixie Exp $
 #
 # agelog -- age log files, by Dave Lennert as told to Bob Desinger and
 #           James Brister
@@ -104,7 +104,7 @@ USAGE="Usage: `basename $0` [-m] [-p Bpid] [-s Bsig] logFile
 
 # get the BEFORE arguments
 
-while [ `expr "$1" : '-.*'` -gt 0 ]
+while [ `expr -- "$1" : '-.*'` -gt 0 ]
 do
 	case "$1" in
 		-h)	echo $USAGE
@@ -140,7 +140,7 @@ fi
 
 # now get the AFTER arguments
 
-while [ `expr "$1" : '-.*'` -gt 0 ]
+while [ `expr -- "$1" : '-.*'` -gt 0 ]
 do
 	case "$1" in
 		-p) 	APID=$2 
