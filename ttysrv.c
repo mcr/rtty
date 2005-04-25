@@ -3,7 +3,7 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.24 2003-02-14 19:38:50 vixie Exp $";
+static char RCSid[] = "$Id: ttysrv.c,v 1.25 2005-04-25 15:53:56 vixie Exp $";
 #endif
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -824,16 +824,38 @@ static struct baud_map {
 
 #if defined(B460800)		/* higher speeds are not always defined */
         baud(460800),
+#endif
+#if defined(B500000)
         baud(500000),
+#endif
+#if defined(B576000)
         baud(576000),
+#endif
+#if defined(B921600)
         baud(921600),
+#endif
+#if defined(B1000000)
         baud(1000000),
+#endif
+#if defined(B1152000)
         baud(1152000),
+#endif
+#if defined(B1500000)
         baud(1500000),
+#endif
+#if defined(B2000000)
         baud(2000000),
+#endif
+#if defined(B2500000)
         baud(2500000),
+#endif
+#if defined(B3000000)
         baud(3000000),
+#endif
+#if defined(B3500000)
         baud(3500000),
+#endif
+#if defined(B4000000)
         baud(4000000),
 #endif
 
