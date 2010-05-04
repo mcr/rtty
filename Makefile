@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.18 2003-02-14 19:38:50 vixie Exp $
+# $Id: Makefile,v 1.19 2010-05-04 16:31:47 vixie Exp $
 
 # Copyright (c) 1996,1997 by Internet Software Consortium.
 #
@@ -34,7 +34,7 @@ CDEBUG = -O
 #	NO_SOCKADDR_LEN	if your "struct sockaddr_in" lacks a sin_len field
 #	NO_HSTRERROR	if your C library has no hstrerror() function
 #
-CDEFS = -DDEBUG -UWANT_TCPIP -UNEED_BITYPES_H -UNEED_INET_ATON \
+CDEFS = -DDEBUG -DWANT_TCPIP -UNEED_BITYPES_H -UNEED_INET_ATON \
 	-UNO_SOCKADDR_LEN -UNO_HSTRERROR
 #
 CFLAGS = $(CDEBUG) $(CDEFS) -I/usr/local/include
