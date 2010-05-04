@@ -3,10 +3,11 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: connutil.c,v 1.9 2001-03-24 21:14:25 vixie Exp $";
+static char RCSid[] = "$Id: connutil.c,v 1.10 2010-05-04 16:31:57 vixie Exp $";
 #endif
 
-/* Copyright (c) 1996 by Internet Software Consortium.
+/* Copyright (c) 2008 by Internet Systems Consortium.
+ * Portions Copyright (c) 1996 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -35,6 +36,7 @@ static char RCSid[] = "$Id: connutil.c,v 1.9 2001-03-24 21:14:25 vixie Exp $";
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <termios.h>
 
 #include "rtty.h"
 #include "misc.h"
