@@ -3,10 +3,11 @@
  */
 
 #ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.13 2003-02-14 19:30:02 vixie Exp $";
+static char RCSid[] = "$Id: locbrok.c,v 1.14 2010-05-04 16:31:35 vixie Exp $";
 #endif
 
-/* Copyright (c) 1996 by Internet Software Consortium.
+/* Copyright (c) 2008 by Internet Systems Consortium.
+ * Portions Copyright (c) 1996 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -37,6 +38,7 @@ int Debug = 0;
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "rtty.h"
