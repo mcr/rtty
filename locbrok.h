@@ -1,7 +1,7 @@
 /* locbrok.h - defs for location broker
  * vix 13sep91 [written]
  *
- * $Id: locbrok.h,v 1.4 1996-08-23 22:25:25 vixie Exp $
+ * $Id: locbrok.h,v 1.5 2010-05-04 16:31:25 vixie Exp $
  */
 
 /* Copyright (c) 1996 by Internet Software Consortium.
@@ -21,7 +21,7 @@
  */
 
 #define	LB_SERVNAME	"locbrok"
-#define LB_SERVPORT	160
+#define LB_SERVPORT	57
 #define	LB_MAXNAMELEN	64
 
 typedef struct locbrok {
