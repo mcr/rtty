@@ -24,6 +24,7 @@ static char RCSid[] = "$Id: ttyprot.c,v 1.10 2001-03-24 21:14:30 vixie Exp $";
 
 #include <sys/param.h>
 #include <sys/uio.h>
+#include <arpa/inet.h>
 
 #include <ctype.h>
 #include <stdio.h>
