@@ -34,6 +34,7 @@ int Debug = 0;
 
 #include <netinet/in.h>
 
+#include <string.h>
 #include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -76,7 +77,7 @@ static	int		Port,
 static	fd_set		Clients;
 static	reg_db		*RegDB = NULL;
 
-main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
 	struct servent *serv;
 	int ch;
 

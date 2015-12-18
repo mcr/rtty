@@ -28,6 +28,7 @@ static char RCSid[] = "$Id: rtty.c,v 1.24 2003-02-14 19:38:50 vixie Exp $";
 #include <sys/file.h>
 #include <sys/un.h>
 #include <sys/param.h>
+#include <arpa/inet.h>
 
 #include <ctype.h>
 #include <errno.h>

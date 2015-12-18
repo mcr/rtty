@@ -30,6 +30,9 @@ static char RCSid[] = "$Id: connutil.c,v 1.10 2010-05-04 16:31:57 vixie Exp $";
 
 #include <netinet/in.h>
 
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 #include <errno.h>
 #include <netdb.h>
 #include <setjmp.h>
@@ -57,7 +60,7 @@ int doconnect(struct sockaddr_in *n, int ns, int to) {
 	if (sock < 0) {
 		return -1;
 	}
-		
+
 	if (to) {
 		if (!setjmp(jmpalrm)) {
 			signal(SIGALRM, sigalrm);
@@ -87,7 +90,7 @@ int
 rconnect(const char *host, const char *service,
 	 FILE *verbose, FILE *errors, int timeout)
 {
-	u_int32_t **hp;
+        struct in_addr **hp;
 	struct hostent *h;
 	struct sockaddr_in n;
 	int port, sock, done;
@@ -114,7 +117,7 @@ rconnect(const char *host, const char *service,
 	if (inet_aton(host, &n.sin_addr)) {
 		if (verbose) {
 			fprintf(verbose, "trying [%s]\n",
-				inet_ntoa(n.sin_addr.s_addr));
+				inet_ntoa(n.sin_addr));
 		}
 		done = ((sock = doconnect(&n, sizeof n, timeout)) >= 0);
 	} else {
@@ -131,7 +134,7 @@ rconnect(const char *host, const char *service,
 			}
 			return -1;
 		}
-		for (hp = (u_int32_t**)h->h_addr_list;  *hp;  hp++) {
+		for (hp = (struct in_addr **)h->h_addr_list;  *hp;  hp++) {
 			bcopy(*hp, (caddr_t)&n.sin_addr.s_addr, h->h_length);
 			if (verbose) {
 				fprintf(verbose,
