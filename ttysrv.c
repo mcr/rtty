@@ -2,10 +2,6 @@
  * vix 28may91 [written]
  */
 
-#ifndef LINT
-static char RCSid[] = "$Id: ttysrv.c,v 1.25 2005-04-25 15:53:56 vixie Exp $";
-#endif
-
 /* Copyright (c) 1996 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any

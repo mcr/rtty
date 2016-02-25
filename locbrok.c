@@ -2,10 +2,6 @@
  * vix 13sep91 [written]
  */
 
-#ifndef LINT
-static char RCSid[] = "$Id: locbrok.c,v 1.14 2010-05-04 16:31:35 vixie Exp $";
-#endif
-
 /* Copyright (c) 2008 by Internet Systems Consortium.
  * Portions Copyright (c) 1996 by Internet Software Consortium.
  *

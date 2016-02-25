@@ -2,10 +2,6 @@
  * vix 13sep91 [written - again, dammit]
  */
 
-#ifndef LINT
-static char RCSid[] = "$Id: connutil.c,v 1.10 2010-05-04 16:31:57 vixie Exp $";
-#endif
-
 /* Copyright (c) 2008 by Internet Systems Consortium.
  * Portions Copyright (c) 1996 by Internet Software Consortium.
  *
