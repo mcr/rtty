@@ -17,4 +17,15 @@ ttysrv
 ttysrv.o
 version.c
 version.o
-
+.deps
+configure
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache
+compile
+config.log
+config.status
+depcomp
+install-sh
+missing
