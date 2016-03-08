@@ -155,25 +155,6 @@ safe_strdup(const char *str) {
 	return (new);
 }
 
-#ifndef isnumber
-/*
- * from libvixutil.a (14may94 version)
- */
-int
-isnumber(const char *s) {
-	char ch;
-	int n;
-
-	n = 0;
-	while (ch = *s++) {
-		n++;
-		if (!isdigit(ch))
-			return (0);
-	}
-	return (n != 0);
-}
-#endif
-
 #ifdef NEED_INET_ATON
 int inet_aton(const char *cp, struct in_addr *addr) {
 	u_int32_t v;
