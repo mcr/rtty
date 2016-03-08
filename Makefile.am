@@ -14,12 +14,12 @@ bin_SCRIPTS = Startup agelog agelogs console startsrv
 rtty_SOURCES = rtty.c connutil.c ttyprot.c misc.c rtty.h misc.h ttyprot.h
 nodist_rtty_SOURCES = version.c
 
-ttysrv_SOURCES = ttysrv.c ttyprot.c misc.c rtty.h misc.h ttyprot.h
+ttysrv_SOURCES = ttysrv.c ttyprot.c connutil.c misc.c rtty.h misc.h ttyprot.h
 nodist_ttysrv_SOURCES = version.c
 
 EXTRA_DIST = Startup.sh agelog.sh agelogs.sh console.sh startsrv.sh
 
-CLEANFILES = $(bin_SCRIPTS)
+CLEANFILES = $(bin_SCRIPTS) version.c
 $(bin_SCRIPTS): Makefile
 
 .sh:
