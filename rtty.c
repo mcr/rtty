@@ -35,6 +35,7 @@
 #include <pwd.h>
 #include <termios.h>
 #include <unistd.h>
+#include <crypt.h>
 
 #include "rtty.h"
 #include "misc.h"

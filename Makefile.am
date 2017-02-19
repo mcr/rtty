@@ -6,12 +6,13 @@
 ##
 
 SUFFIXES = .sh
-AM_CFLAGS = -DDEBUG -DWANT_TCPIP
+AM_CFLAGS = -DDEBUG -DWANT_TCPIP -DNO_SOCKADDR_LEN
 
 bin_PROGRAMS = rtty ttysrv
 bin_SCRIPTS = Startup agelog agelogs console startsrv
 
 rtty_SOURCES = rtty.c connutil.c ttyprot.c misc.c rtty.h misc.h ttyprot.h
+rtty_LDADD = -lcrypt
 nodist_rtty_SOURCES = version.c
 
 ttysrv_SOURCES = ttysrv.c ttyprot.c connutil.c misc.c rtty.h misc.h ttyprot.h
